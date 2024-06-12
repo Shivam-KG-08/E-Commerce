@@ -54,7 +54,7 @@ module.exports.login = async (req, res, next) => {
     console.log(user);
 
     let check = user.comparePassword(password, user.password);
-    console.log("compa");
+
     if (!user) {
       return res.status(400).json({
         status: "fails",
@@ -76,7 +76,12 @@ module.exports.login = async (req, res, next) => {
       return res.status(200).json({
         status: "success",
         message: "Successfully login",
-        user,
+        user: {
+          username: user.username,
+          email: user.email,
+          phone_number: user.phone_number,
+          role: user.role,
+        },
         token,
       });
     }
@@ -84,6 +89,28 @@ module.exports.login = async (req, res, next) => {
     console.log(error);
     res.status(400).json({
       status: "fails",
+      error,
+    });
+  }
+};
+
+module.exports.getProfile = async (req, res) => {
+  try {
+    const { username, email, phone_number, role } = req.user;
+
+    return res.status(200).json({
+      status: "success",
+      user: {
+        username,
+        email,
+        phone_number,
+        role,
+      },
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      status: "fail",
       error,
     });
   }

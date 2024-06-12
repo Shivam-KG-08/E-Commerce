@@ -5,6 +5,7 @@ const auth = require("../middleware/auth");
 
 router.route("/signUp").post(UserController.signUp);
 router.route("/logIn").post(UserController.login);
+router.route("/getProfile").get(auth, UserController.getProfile);
 
 // router.route("/setAdmin").get(auth, UserController.setAdmin);
 
