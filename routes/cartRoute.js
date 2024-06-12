@@ -30,11 +30,11 @@ router
 
 router
   .route("/item/:productId")
-  .post(
-    userController.protectedRoute("user"),
-    getCartById,
-    CartController.updateQuantity
-  )
+  // .post(
+  //   userController.protectedRoute("user"),
+  //   getCartById,
+  //   CartController.updateQuantity
+  // )
   .delete(
     userController.protectedRoute("user"),
     getCartById,

@@ -53,6 +53,8 @@ module.exports.login = async (req, res, next) => {
     const user = await User.findOne({ username });
     console.log(user);
 
+    let check = user.comparePassword(password, user.password);
+    console.log("compa");
     if (!user) {
       return res.status(400).json({
         status: "fails",
@@ -60,7 +62,7 @@ module.exports.login = async (req, res, next) => {
       });
     }
 
-    if (user.username !== username && user.password !== password) {
+    if (user.username !== username && check) {
       console.log(error);
       return res.status(400).json({
         status: "fails",
@@ -69,6 +71,7 @@ module.exports.login = async (req, res, next) => {
     } else {
       let token = jwt.sign({ username }, process.env.SECRET_KEY);
       console.log(token);
+      console.log("token");
 
       return res.status(200).json({
         status: "success",
