@@ -27,10 +27,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-console.log("hello learning git now");
-
-console.log("hello this is from temp branchs");
-
 app.listen(PORT, () => {
   console.log(`Server is running on PORT no: ${PORT}`);
 });
