@@ -27,6 +27,8 @@ app.use((err, req, res, next) => {
   });
 });
 
+console.log("hello learning git now");
+
 app.listen(PORT, () => {
   console.log(`Server is running on PORT no: ${PORT}`);
 });
