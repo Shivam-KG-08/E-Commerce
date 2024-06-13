@@ -2,13 +2,12 @@ const User = require("../model/user");
 const jwt = require("jsonwebtoken");
 const CustomError = require("../utility/CustomError");
 
-module.exports.signUp = async (req, res, next) => {
+module.exports.signup = async (req, res) => {
   try {
-    const { username, email, password, phone_number, role } = req.body;
+    const { userName, email, password, phoneNumber, role } = req.body;
     const userExist = await User.findOne({ email });
-    console.log(req.body);
 
-    if (userExist != undefined) {
+    if (userExist) {
       return res.status(200).json({
         status: "fail",
         message: "User Already Exist",
@@ -16,15 +15,14 @@ module.exports.signUp = async (req, res, next) => {
     }
 
     const user = await User.create({
-      username,
+      userName,
       email,
       password,
-      phone_number,
+      phoneNumber,
       role,
     });
 
     let token = jwt.sign({ email }, process.env.SECRET_KEY);
-    console.log(token);
 
     return res.status(200).json({
       status: "success",
@@ -32,6 +30,7 @@ module.exports.signUp = async (req, res, next) => {
       token,
     });
   } catch (error) {
+    console.log(error);
     return res.status(400).json({
       status: "fail",
       error,
@@ -41,16 +40,16 @@ module.exports.signUp = async (req, res, next) => {
 
 module.exports.login = async (req, res, next) => {
   try {
-    const { username, password } = req.body;
+    const { userName, password } = req.body;
 
-    if (!username || !password) {
+    if (!userName || !password) {
       return res.status(400).json({
         status: "fail",
         message: "Username or Password is required",
       });
     }
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ userName });
     console.log(user);
 
     let check = user.comparePassword(password, user.password);
@@ -62,14 +61,14 @@ module.exports.login = async (req, res, next) => {
       });
     }
 
-    if (user.username !== username && check) {
+    if (user.userName !== userName && check) {
       console.log(error);
       return res.status(400).json({
         status: "fails",
         error,
       });
     } else {
-      let token = jwt.sign({ username }, process.env.SECRET_KEY);
+      let token = jwt.sign({ userName }, process.env.SECRET_KEY);
       console.log(token);
       console.log("token");
 
@@ -77,9 +76,9 @@ module.exports.login = async (req, res, next) => {
         status: "success",
         message: "Successfully login",
         user: {
-          username: user.username,
+          username: user.userName,
           email: user.email,
-          phone_number: user.phone_number,
+          phoneNumber: user.phoneNumber,
           role: user.role,
         },
         token,
@@ -96,14 +95,14 @@ module.exports.login = async (req, res, next) => {
 
 module.exports.getProfile = async (req, res) => {
   try {
-    const { username, email, phone_number, role } = req.user;
+    const { userName, email, phoneNumber, role } = req.user;
 
     return res.status(200).json({
       status: "success",
       user: {
-        username,
+        userName,
         email,
-        phone_number,
+        phoneNumber,
         role,
       },
     });

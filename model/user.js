@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
 const UserSchema = new mongoose.Schema({
-  username: {
+  userName: {
     type: String,
     required: true,
     unique: true,
@@ -21,10 +21,10 @@ const UserSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  phone_number: {
+  phoneNumber: {
     type: Number,
     required: true,
-    unique: true,
+    // unique: true,
     validate: {
       validator: function (v) {
         return /^\d{10}$/.test(v);
@@ -45,7 +45,6 @@ UserSchema.pre("save", async function (next) {
   }
   try {
     this.password = await bcrypt.hash(this.password, 10);
-    console.log(this.password);
     next();
   } catch (error) {
     console.log(error);

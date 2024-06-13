@@ -68,6 +68,14 @@ CartSchema.post("findOne", function (docs, next) {
   next();
 });
 
+CartSchema.methods.calculateGrandTotal = (cart) => {
+  let total = 0;
+  for (let i = 0; i < cart.items.length; i++) {
+    total += cart.items[i].subTotal;
+  }
+  return (cart.grandTotal = total);
+};
+
 const Cart = mongoose.model("cart", CartSchema);
 
 module.exports = Cart;

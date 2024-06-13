@@ -9,11 +9,7 @@ router.use(auth);
 
 router
   .route("/")
-  .get(
-    userController.protectedRoute("user"),
-    getCartById,
-    CartController.getCart
-  )
+  .get(userController.protectedRoute("user"), CartController.getCart)
   .delete(
     userController.protectedRoute("user"),
     getCartById,
@@ -22,11 +18,7 @@ router
 
 router
   .route("/:productId")
-  .post(
-    userController.protectedRoute("user"),
-    getCartById,
-    CartController.addToCart
-  );
+  .post(userController.protectedRoute("user"), CartController.addToCart);
 
 router
   .route("/item/:productId")

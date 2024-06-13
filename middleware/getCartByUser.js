@@ -20,7 +20,8 @@ const getCartByUser = async (req, res, next) => {
 
     // console.log(cart);
     console.log(cart);
-    if (cart == null) {
+    // if (cart == null) {
+    if (!cart) {
       cart = new Cart({ userId: id, items: [], grandTotal: 0 });
       await cart.save();
     }
