@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const User = require("../model/user");
+const User = require("./userModel");
 const CartSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -34,7 +34,15 @@ const CartSchema = new mongoose.Schema({
   ],
   status: {
     type: String,
-    enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"],
+    enum: [
+      "Pending",
+      "Processing",
+      "Shipped",
+      "Delivered",
+      "Cancelled",
+      "Completed",
+      "Failed",
+    ],
     default: "Processing",
     required: true,
   },
@@ -43,25 +51,31 @@ const CartSchema = new mongoose.Schema({
     type: Number,
     required: true,
   },
+
+  isComplete: {
+    type: Boolean,
+    required: true,
+    default: false,
+  },
 });
+
 //Executes before .save() or .create() before saved in to database
 CartSchema.pre("save", function (next) {
-  console.log(this);
-  console.log("saved to database");
+  // console.log(this);   // here this represent to the current document
+  // console.log("saved to database");
   next();
 });
 
 CartSchema.pre("findOne", function (next) {
   this.startTime = Date.now();
-  console.log("Query middlware pre");
-  console.log(this.getQuery());
+  // console.log("Query middlware pre");
+  // console.log(this.getQuery());    // here this represent to the query object
   next();
 });
 
 CartSchema.post("findOne", function (docs, next) {
   this.endTime = Date.now();
-  console.log("Query middlware post");
-
+  // console.log("Query middlware post");
   console.log(
     `${this.endTime - this.startTime} millseconds takes to execute query`
   );

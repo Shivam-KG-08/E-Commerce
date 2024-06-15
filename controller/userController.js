@@ -1,4 +1,4 @@
-const User = require("../model/user");
+const User = require("../model/userModel");
 const jwt = require("jsonwebtoken");
 const CustomError = require("../utility/CustomError");
 
@@ -22,7 +22,9 @@ module.exports.signup = async (req, res) => {
       role,
     });
 
-    let token = jwt.sign({ email }, process.env.SECRET_KEY);
+    console.log(user);
+
+    let token = jwt.sign({ id: user._id }, process.env.SECRET_KEY);
 
     return res.status(200).json({
       status: "success",
@@ -50,9 +52,6 @@ module.exports.login = async (req, res, next) => {
     }
 
     const user = await User.findOne({ userName });
-    console.log(user);
-
-    let check = user.comparePassword(password, user.password);
 
     if (!user) {
       return res.status(400).json({
@@ -60,17 +59,11 @@ module.exports.login = async (req, res, next) => {
         message: "Invalid userName and password!",
       });
     }
+    //return true if encrypt password and user.password is same
+    let check = await user.comparePassword(password, user.password);
 
-    if (user.userName !== userName && check) {
-      console.log(error);
-      return res.status(400).json({
-        status: "fails",
-        error,
-      });
-    } else {
-      let token = jwt.sign({ userName }, process.env.SECRET_KEY);
-      console.log(token);
-      console.log("token");
+    if (user.userName == userName && check) {
+      let token = jwt.sign({ id: user._id }, process.env.SECRET_KEY);
 
       return res.status(200).json({
         status: "success",
@@ -82,6 +75,11 @@ module.exports.login = async (req, res, next) => {
           role: user.role,
         },
         token,
+      });
+    } else {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid username or password",
       });
     }
   } catch (error) {
@@ -117,13 +115,15 @@ module.exports.getProfile = async (req, res) => {
 
 module.exports.protectedRoute = (role) => {
   return (req, res, next) => {
-    if (req.user.role != role) {
-      const err = new CustomError(
-        "You have not an authorized person so can't access this route",
-        "400"
+    if (!role.includes(req.locals.role)) {
+      next(
+        new CustomError(
+          "You have not an authorized person so can't access this route",
+          403
+        )
       );
-      next(err);
     }
-    next();
+
+    next(); // calling next middleware
   };
 };

@@ -7,6 +7,4 @@ router.route("/signup").post(UserController.signup);
 router.route("/logIn").post(UserController.login);
 router.route("/getProfile").get(auth, UserController.getProfile);
 
-// router.route("/setAdmin").get(auth, UserController.setAdmin);
-
 module.exports = router;

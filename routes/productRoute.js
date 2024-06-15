@@ -1,16 +1,15 @@
 const express = require("express");
-const router = express.Router();
 const productController = require("../controller/productController");
 const userController = require("../controller/userController");
-
-// const authAdmin = require("../middleware/authAdmin");
 const auth = require("../middleware/auth");
+
+const router = express.Router();
 
 //free route
 router.route("/").get(productController.getProduct);
 router.route("/:id").get(productController.singleProduct);
 
-//auth
+//authentication route
 router.use(auth);
 
 router

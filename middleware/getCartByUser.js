@@ -1,7 +1,7 @@
 const { model } = require("mongoose");
-const Cart = require("../model/cart");
-const User = require("../model/user");
-const Product = require("../model/products");
+const Cart = require("../model/cartModel");
+const User = require("../model/userModel");
+const Product = require("../model/productModel");
 
 const getCartByUser = async (req, res, next) => {
   let cart;
