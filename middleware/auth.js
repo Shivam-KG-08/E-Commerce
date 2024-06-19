@@ -6,7 +6,6 @@ const auth = async (req, res, next) => {
   try {
     const token = req?.headers["authorization"]?.split(" ")[1];
     const decoded = jwt.verify(token, process.env.SECRET_KEY);
-    console.log(decoded.id);
 
     //only findById takes id as a string rather than findOne , find, etc takes as a object
     const currentUser = await User.findById(decoded.id);

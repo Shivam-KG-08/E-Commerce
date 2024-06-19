@@ -1,5 +1,6 @@
 const Cart = require("../model/cartModel");
 const Product = require("../model/productModel");
+const CustomError = require("../utility/CustomError");
 
 //Add item in to cart
 module.exports.addToCart = async (req, res) => {
@@ -16,15 +17,11 @@ module.exports.addToCart = async (req, res) => {
     }
 
     const cart = await Cart.findOne({ userId: id });
-    console.log(cart);
 
     const product = await Product.findById(productId);
 
     if (!product) {
-      return res.status(400).json({
-        status: "fails",
-        message: "Product not found",
-      });
+      next(new CustomError("Product not found", 404));
     }
 
     if (quantity > product.productQuantity) {
@@ -66,7 +63,7 @@ module.exports.addToCart = async (req, res) => {
 
       //update value in products and saved in to database
 
-      product.productQuantity = product.productQuantity - quantity;
+      // product.productQuantity = product.productQuantity - quantity;
       await product.save();
 
       //calculate grandTotal value in cart
@@ -97,8 +94,8 @@ module.exports.addToCart = async (req, res) => {
       cart.items[findIndex].subTotal = quantity * product.productPrice;
 
       // update product quantity in to Products
-      product.productQuantity =
-        previousProductQuantity - (quantity - previousItemQuant);
+      // product.productQuantity =
+      //   previousProductQuantity - (quantity - previousItemQuant);
 
       await product.save();
 
@@ -121,7 +118,7 @@ module.exports.addToCart = async (req, res) => {
 
 //getcart
 
-module.exports.getCart = async (req, res) => {
+module.exports.getCart = async (req, res, next) => {
   //take user from request object
   const user = req.locals;
 
@@ -129,10 +126,7 @@ module.exports.getCart = async (req, res) => {
     let cart = await Cart.findOne({ userId: user._id });
 
     if (!cart) {
-      return res.status(400).json({
-        status: "fails",
-        message: "Cart not found",
-      });
+      next(new CustomError("Cart not found", 404));
     }
 
     // if there is not any item in to cart then shown cart is empty
@@ -150,7 +144,7 @@ module.exports.getCart = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-    return res.status(400).json({
+    res.status(400).json({
       status: "fails",
       error,
     });
@@ -159,53 +153,90 @@ module.exports.getCart = async (req, res) => {
 
 // make an empty cart
 
-module.exports.removeCart = async (req, res) => {
+// module.exports.removeCart = async (req, res) => {
+//   try {
+//     const userId = req.locals._id;
+
+//     const cart = await Cart.findOne({ userId });
+
+//     //take all productId in to cart items in form of array
+
+//     const allpProductId = cart.items.map((i) => {
+//       return i.productId;
+//     });
+
+//     //take all productQuantity in to cart items in form of array
+
+//     const allpProductQuantity = cart.items.map((i) => {
+//       return i.quantity;
+//     });
+
+//     let arrayOfProducts = [];
+
+//     //loop allProductId and find Porducts and store in products and then push that products in to arrayOfProducts
+
+//     for (let i of allpProductId) {
+//       let products = await Product.findById(i);
+
+//       if (products) {
+//         arrayOfProducts.push(products);
+//       } else {
+//         return res.status(400).json({
+//           status: "fails",
+//           error: `Product with ID ${i} not found`,
+//         });
+//       }
+//     }
+
+//     //product item is remove so quantity of item is back to Products
+//     if (cart.status != "Failed") {
+//       for (let i = 0; i < arrayOfProducts.length; i++) {
+//         arrayOfProducts[i].productQuantity =
+//           arrayOfProducts[i].productQuantity + allpProductQuantity[i];
+
+//         //after update evenry products then save in to database
+//         await arrayOfProducts[i].save();
+//       }
+//     }
+
+//     //item is empty so make an emoty array with grandtotal 0.s
+//     cart.items = [];
+//     cart.grandTotal = 0;
+
+//     await cart.save();
+
+//     return res.status(200).json({
+//       status: "success",
+//       cart,
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     return res.status(400).json({
+//       status: "fails",
+//       error,
+//     });
+//   }
+// };
+
+module.exports.emptyCart = async (req, res, next) => {
   try {
     const userId = req.locals._id;
-
     const cart = await Cart.findOne({ userId });
 
-    //take all productId in to cart items in form of array
+    if (!cart) {
+      next(new CustomError("Cart not found", 404));
+    }
 
-    const allpProductId = cart.items.map((i) => {
-      return i.productId;
-    });
-
-    //take all productQuantity in to cart items in form of array
-
-    const allpProductQuantity = cart.items.map((i) => {
-      return i.quantity;
-    });
-
-    let arrayOfProducts = [];
-
-    //loop allProductId and find Porducts and store in products and then push that products in to arrayOfProducts
-
-    for (let i of allpProductId) {
-      let products = await Product.findById(i);
-
-      if (products) {
-        arrayOfProducts.push(products);
+    cart.items.map(async (i) => {
+      let prd = await Product.findOne({ _id: i.productId });
+      if (i.isReserved) {
+        prd.productQuantity = prd.productQuantity + i.quantity;
       } else {
-        return res.status(400).json({
-          status: "fails",
-          error: `Product with ID ${i} not found`,
-        });
+        prd.productQuantity = prd.productQuantity + 0;
       }
-    }
+      prd.save();
+    });
 
-    //product item is remove so quantity of item is back to Products
-    if (cart.status != "Failed") {
-      for (let i = 0; i < arrayOfProducts.length; i++) {
-        arrayOfProducts[i].productQuantity =
-          arrayOfProducts[i].productQuantity + allpProductQuantity[i];
-
-        //after update evenry products then save in to database
-        await arrayOfProducts[i].save();
-      }
-    }
-
-    //item is empty so make an emoty array with grandtotal 0.s
     cart.items = [];
     cart.grandTotal = 0;
 
@@ -226,12 +257,16 @@ module.exports.removeCart = async (req, res) => {
 
 //remove  particular item from cart
 
-module.exports.deleteItem = async (req, res) => {
+module.exports.deleteItem = async (req, res, next) => {
   try {
     const productId = req.params.productId;
     const userId = req.locals._id;
 
     const cart = await Cart.findOne({ userId });
+
+    if (!cart) {
+      next(new CustomError("Cart not found", 404));
+    }
 
     const itemIndex = cart.items.findIndex(
       (item) => item.productId == productId
@@ -245,11 +280,10 @@ module.exports.deleteItem = async (req, res) => {
       const removeItem = cart.items.splice(itemIndex, 1);
 
       //product quantity update
-      if (cart.status != "Failed") {
-        product.productQuantity =
-          product.productQuantity + removeItem[0].quantity;
-        await product.save();
-      }
+
+      // product.productQuantity =
+      //   product.productQuantity + removeItem[0].quantity;
+      await product.save();
 
       cart.grandTotal = cart.grandTotal - removeItem[0].subTotal;
       await cart.save();
@@ -273,104 +307,24 @@ module.exports.deleteItem = async (req, res) => {
   }
 };
 
-//process payment
-
-const processPayment = () => {
-  return new Promise((resolve, reject) => {
-    let paymentStatus = false;
-    // let paymentStatus = Math.random() > 0.5;
-    // console.log(paymentStatus);
-
-    setTimeout(() => {
-      if (paymentStatus) {
-        resolve("Payment success");
-      } else {
-        reject("Payment failed");
-      }
-    }, 5000);
-  });
-};
-
-module.exports.checkoutHandler = async (req, res) => {
+module.exports.deleteCart = async (req, res, next) => {
   try {
-    const id = req.params.cartId;
-    let cart = await Cart.findById(id);
+    const cartId = req.params.cartId;
+    let cart = await Cart.findByIdAndDelete(cartId);
 
     if (!cart) {
-      return res.status(404).json({
-        status: "error",
-        message: "cart not found",
-      });
+      next(new CustomError("Cart not found", 404));
     }
 
-    if (cart.items.length == 0) {
-      return res.status(404).json({
-        status: "error",
-        message: "Please add item in to cart then complete payment",
-      });
-    }
-
-    try {
-      await processPayment(); //it calls when process payment resolve means successs
-
-      cart.isComplete = true;
-
-      cart.items = [];
-      cart.grandTotal = 0;
-
-      cart.status = "Completed";
-
-      await cart.save();
-
-      res.status(200).json({
-        status: "success",
-        message: "Payment successfully",
-      });
-    } catch (paymentError) {
-      let arrayOfProducts = [];
-
-      //update  quantity in inventory manage when there is an error while payment fails
-      const allpProductId = cart.items.map((i) => {
-        return i.productId;
-      });
-
-      const allpProductQuantity = cart.items.map((i) => {
-        return i.quantity;
-      });
-
-      for (let i of allpProductId) {
-        let products = await Product.findById(i);
-
-        if (products) {
-          arrayOfProducts.push(products);
-        } else {
-          return res.status(400).json({
-            status: "fails",
-            error: `Product with ID ${i} not found`,
-          });
-        }
-      }
-
-      //here check if status failed then not perform update quantity functionality
-      if (cart.status != "Failed") {
-        for (let i = 0; i < arrayOfProducts.length; i++) {
-          arrayOfProducts[i].productQuantity =
-            arrayOfProducts[i].productQuantity + allpProductQuantity[i];
-          await arrayOfProducts[i].save();
-        }
-      }
-
-      //redirect to home page
-
-      //make a cart status failed when user repeate payment it check status if failed then not add quantity of item in products
-      cart.status = "Failed";
-
-      await cart.save();
-
-      return res.status(500).json({ status: "fails", err: paymentError });
-    }
+    return res.status(200).json({
+      status: "success",
+      message: "Cart deleted successfully",
+    });
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ status: "fails", error });
+    return res.status(400).json({
+      status: "fails",
+      error,
+    });
   }
 };

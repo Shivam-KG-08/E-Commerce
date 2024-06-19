@@ -4,6 +4,7 @@ const app = express();
 const productRoute = require("./routes/productRoute");
 const userRoute = require("./routes/userRoute");
 const cartRoute = require("./routes/cartRoute");
+const paymentRoute = require("./routes/paymentRoute");
 const databaseConnected = require("./config/db");
 
 //database connected
@@ -20,12 +21,21 @@ app.use("/api/v1/products", productRoute);
 app.use("/api/v1/users", userRoute);
 app.use("/api/v1/carts", cartRoute);
 
+//payment routes
+app.use("/api/v1/payment", paymentRoute);
+
+//not available route
+app.all("*", (req, res, next) => {
+  const err = new Error(`Can't find ${req.originalUrl} on this server`);
+  (err.status = "fail"), (err.statuscode = 404), next(err);
+});
+
 //global error handler
-app.use((err, req, res, next) => {
-  console.log(err.stack);
-  return res.status(err.statuscode).json({
-    status: err.status,
-    err,
+app.use((error, req, res, next) => {
+  console.log(error.stack);
+  return res.status(error.statuscode).json({
+    status: error.status,
+    message: error.message,
   });
 });
 

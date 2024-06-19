@@ -1,4 +1,5 @@
 const Product = require("../model/productModel");
+const CustomError = require("../utility/CustomError");
 
 module.exports.createProduct = async (req, res) => {
   const { productName, productBrand, productPrice, productQuantity } = req.body;
@@ -11,6 +12,13 @@ module.exports.createProduct = async (req, res) => {
       });
     }
 
+    let product = await Product.findOne({ productName });
+    if (product) {
+      return res.status(400).json({
+        status: "fails",
+        message: "Product already exist",
+      });
+    }
     const products = await Product.create({
       productName,
       productBrand,
@@ -18,7 +26,7 @@ module.exports.createProduct = async (req, res) => {
       productQuantity,
     });
 
-    return res.status(200).json({
+    return res.status(201).json({
       status: "success",
       products,
     });
@@ -47,7 +55,7 @@ module.exports.getProduct = async (req, res) => {
   }
 };
 
-module.exports.updateProduct = async (req, res) => {
+module.exports.updateProduct = async (req, res, next) => {
   try {
     const id = req.params.id;
     const { productName, productBrand, productPrice } = req.body;
@@ -60,6 +68,11 @@ module.exports.updateProduct = async (req, res) => {
       },
       { new: true }
     );
+
+    if (!updateProduct) {
+      next(new CustomError("Product not found", 404));
+    }
+
     return res.status(200).json({
       status: "success",
       updateProduct,
@@ -72,16 +85,13 @@ module.exports.updateProduct = async (req, res) => {
   }
 };
 
-module.exports.singleProduct = async (req, res) => {
+module.exports.singleProduct = async (req, res, next) => {
   try {
     const id = req.params.id;
 
     const singleProduct = await Product.findById({ _id: id });
     if (!singleProduct) {
-      return res.status(400).json({
-        status: "fails",
-        message: "Product is not available",
-      });
+      next(new CustomError("Product not found", 404));
     }
     return res.status(200).json({
       status: "success",
@@ -95,10 +105,15 @@ module.exports.singleProduct = async (req, res) => {
   }
 };
 
-module.exports.deleteProduct = async (req, res) => {
+module.exports.deleteProduct = async (req, res, next) => {
   try {
     const id = req.params.id;
-    await Product.findByIdAndDelete({ _id: id });
+    const product = await Product.findByIdAndDelete({ _id: id });
+
+    if (!product) {
+      next(new CustomError("Product not found", 404));
+    }
+
     return res.status(200).json({
       status: "success",
       message: "delete successfully",

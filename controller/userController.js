@@ -8,7 +8,7 @@ module.exports.signup = async (req, res) => {
     const userExist = await User.findOne({ email });
 
     if (userExist) {
-      return res.status(200).json({
+      return res.status(400).json({
         status: "fail",
         message: "User Already Exist",
       });
@@ -26,7 +26,7 @@ module.exports.signup = async (req, res) => {
 
     let token = jwt.sign({ id: user._id }, process.env.SECRET_KEY);
 
-    return res.status(200).json({
+    return res.status(201).json({
       status: "success",
       user,
       token,
@@ -119,7 +119,7 @@ module.exports.protectedRoute = (role) => {
       next(
         new CustomError(
           "You have not an authorized person so can't access this route",
-          403
+          401
         )
       );
     }
