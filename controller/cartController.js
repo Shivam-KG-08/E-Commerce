@@ -17,11 +17,12 @@ module.exports.addToCart = async (req, res) => {
     }
 
     const cart = await Cart.findOne({ userId: id });
+    console.log(cart);
 
     const product = await Product.findById(productId);
 
     if (!product) {
-      next(new CustomError("Product not found", 404));
+      return next(new CustomError("Product not found", 404));
     }
 
     if (quantity > product.productQuantity) {
@@ -31,8 +32,9 @@ module.exports.addToCart = async (req, res) => {
       });
     }
 
-    let createCart;
+    let createCart = cart;
     if (!cart) {
+      console.log("hi");
       // if there is not any cart available then create an cart then add items in to cart
       createCart = await Cart.create({
         userId: id,
@@ -45,14 +47,14 @@ module.exports.addToCart = async (req, res) => {
 
     //find products in to cart if product is not found then return -1 as a index ,  and if product is found then return index of products
 
-    let findIndex = cart.items.findIndex((i) => {
-      return i.productId == productId;
+    let findIndex = createCart.items.findIndex((i) => {
+      return i.productId.toString() === productId;
     });
 
     if (findIndex < 0) {
       // if (findIndex ==  -1) {
 
-      cart.items.push({
+      createCart.items.push({
         productId,
         productName: product.productName,
         productBrand: product.productBrand,
@@ -67,31 +69,30 @@ module.exports.addToCart = async (req, res) => {
       await product.save();
 
       //calculate grandTotal value in cart
-      cart.calculateGrandTotal(cart);
+      createCart.calculateGrandTotal(createCart);
 
-      cart.status = "Processing";
-      cart.isComplete = false;
+      createCart.status = "Processing";
 
-      await cart.save();
+      await createCart.save();
 
       return res.status(201).json({
         status: "success",
-        cart,
+        cart: createCart,
       });
     } else {
       // if user has found product in to cart  , then it sure to make update quantity of product in to cart
 
       //take previous quantity of product
-      let previousProductQuantity = product.productQuantity;
+      // let previousProductQuantity = product.productQuantity;
 
       // take previous items quantity that passed in first when user add items in to cart
-      let previousItemQuant = cart.items[findIndex].quantity;
+      // let previousItemQuant = createCart.items[findIndex].quantity;
 
       //assign updated quantity to the cart items
-      cart.items[findIndex].quantity = quantity;
+      createCart.items[findIndex].quantity = quantity;
 
       // calculate upated quantity with subTotal
-      cart.items[findIndex].subTotal = quantity * product.productPrice;
+      createCart.items[findIndex].subTotal = quantity * product.productPrice;
 
       // update product quantity in to Products
       // product.productQuantity =
@@ -99,12 +100,12 @@ module.exports.addToCart = async (req, res) => {
 
       await product.save();
 
-      cart.calculateGrandTotal(cart);
-      await cart.save();
+      createCart.calculateGrandTotal(cart);
+      await createCart.save();
 
       return res.status(201).json({
         status: "success",
-        cart,
+        cart: createCart,
       });
     }
   } catch (error) {
@@ -126,7 +127,7 @@ module.exports.getCart = async (req, res, next) => {
     let cart = await Cart.findOne({ userId: user._id });
 
     if (!cart) {
-      next(new CustomError("Cart not found", 404));
+      return next(new CustomError("Cart not found", 404));
     }
 
     // if there is not any item in to cart then shown cart is empty
@@ -144,7 +145,7 @@ module.exports.getCart = async (req, res, next) => {
     });
   } catch (error) {
     console.log(error);
-    res.status(400).json({
+    return res.status(400).json({
       status: "fails",
       error,
     });
@@ -229,11 +230,12 @@ module.exports.emptyCart = async (req, res, next) => {
 
     cart.items.map(async (i) => {
       let prd = await Product.findOne({ _id: i.productId });
-      if (i.isReserved) {
-        prd.productQuantity = prd.productQuantity + i.quantity;
-      } else {
-        prd.productQuantity = prd.productQuantity + 0;
-      }
+      console.log(i);
+      // if (i.isReserved) {
+      // prd.productQuantity = prd.productQuantity + i.quantity;
+      // } else {
+      prd.productQuantity = prd.productQuantity + 0;
+      // }
       prd.save();
     });
 
@@ -256,7 +258,6 @@ module.exports.emptyCart = async (req, res, next) => {
 };
 
 //remove  particular item from cart
-
 module.exports.deleteItem = async (req, res, next) => {
   try {
     const productId = req.params.productId;

@@ -20,6 +20,7 @@ const auth = async (req, res, next) => {
     }
 
     req.locals = currentUser;
+    console.log(req.locals);
     next();
   } catch (error) {
     console.log(error);

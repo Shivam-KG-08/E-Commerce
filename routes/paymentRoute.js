@@ -13,10 +13,16 @@ router.route("/cancel/:id").get(paymentController.cancelPayment);
 router.use(auth);
 
 router
-  .route("/checkout/:cartId")
+  .route("/checkout")
   .post(
     userController.protectedRoute("user"),
     paymentController.checkoutPayment
   );
+
+router.route(
+  "/webhook",
+  express.raw({ type: "application/json" }),
+  paymentController.webHook
+);
 
 module.exports = router;

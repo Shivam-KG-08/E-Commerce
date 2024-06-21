@@ -20,11 +20,4 @@ router
 
 router.route("/:cartId").delete(CartController.deleteCart);
 
-router
-  .route("/item/checkout/:cartId")
-  .get(
-    userController.protectedRoute("user"),
-    paymentController.checkoutHandler
-  );
-
 module.exports = router;
