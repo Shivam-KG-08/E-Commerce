@@ -6,8 +6,8 @@ const auth = require("../middleware/auth");
 const router = express.Router();
 
 //free route
-router.route("/").get(productController.getProduct);
-router.route("/:id").get(productController.singleProduct);
+router.route("/").get(productController.products);
+router.route("/:id").get(productController.getProduct);
 
 //authentication route
 router.use(auth);

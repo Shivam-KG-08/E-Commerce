@@ -9,6 +9,10 @@ router.route("/success/:id").get(paymentController.successPayment);
 
 router.route("/cancel/:id").get(paymentController.cancelPayment);
 
+router
+  .route("/webhook")
+  .post(express.raw({ type: "application/json" }), paymentController.webHook);
+
 //authentication route
 router.use(auth);
 
@@ -16,13 +20,7 @@ router
   .route("/checkout")
   .post(
     userController.protectedRoute("user"),
-    paymentController.checkoutPayment
+    paymentController.checkoutHandler
   );
-
-router.route(
-  "/webhook",
-  express.raw({ type: "application/json" }),
-  paymentController.webHook
-);
 
 module.exports = router;

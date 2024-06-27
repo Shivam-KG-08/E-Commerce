@@ -11,8 +11,21 @@ const databaseConnected = require("./config/db");
 databaseConnected();
 
 //built-in middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      if (req.originalUrl.startsWith("/api/v1/payment/webhook")) {
+        req.rawBody = buf.toString();
+      }
+    },
+  })
+);
+app.use(
+  express.urlencoded({
+    extended: true,
+  })
+);
+
 //if we handle complex or nested data we use extended : true
 // if we handle simple data then used extended : false
 

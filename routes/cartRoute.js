@@ -2,7 +2,6 @@ const express = require("express");
 const router = express.Router();
 const CartController = require("../controller/cartController");
 const userController = require("../controller/userController");
-const paymentController = require("../controller/paymentController");
 const auth = require("../middleware/auth");
 
 //authentication router

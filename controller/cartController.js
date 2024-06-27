@@ -2,7 +2,8 @@ const Cart = require("../model/cartModel");
 const Product = require("../model/productModel");
 const CustomError = require("../utility/CustomError");
 
-//Add item in to cart
+//Add item in to cart and update item quantity in to cart (if there is not any item available then create cart and after that add in to cart)
+
 module.exports.addToCart = async (req, res) => {
   try {
     const id = req.locals._id;
@@ -17,7 +18,6 @@ module.exports.addToCart = async (req, res) => {
     }
 
     const cart = await Cart.findOne({ userId: id });
-    console.log(cart);
 
     const product = await Product.findById(productId);
 
@@ -34,7 +34,6 @@ module.exports.addToCart = async (req, res) => {
 
     let createCart = cart;
     if (!cart) {
-      console.log("hi");
       // if there is not any cart available then create an cart then add items in to cart
       createCart = await Cart.create({
         userId: id,
@@ -53,14 +52,14 @@ module.exports.addToCart = async (req, res) => {
 
     if (findIndex < 0) {
       // if (findIndex ==  -1) {
-
+      // console.log(findIndex);
       createCart.items.push({
         productId,
         productName: product.productName,
         productBrand: product.productBrand,
         productPrice: product.productPrice,
         quantity,
-        subTotal: quantity * product.productPrice,
+        subTotal: Number(quantity) * Number(product.productPrice),
       });
 
       //update value in products and saved in to database
@@ -80,25 +79,11 @@ module.exports.addToCart = async (req, res) => {
         cart: createCart,
       });
     } else {
-      // if user has found product in to cart  , then it sure to make update quantity of product in to cart
-
-      //take previous quantity of product
-      // let previousProductQuantity = product.productQuantity;
-
-      // take previous items quantity that passed in first when user add items in to cart
-      // let previousItemQuant = createCart.items[findIndex].quantity;
-
       //assign updated quantity to the cart items
       createCart.items[findIndex].quantity = quantity;
 
       // calculate upated quantity with subTotal
       createCart.items[findIndex].subTotal = quantity * product.productPrice;
-
-      // update product quantity in to Products
-      // product.productQuantity =
-      //   previousProductQuantity - (quantity - previousItemQuant);
-
-      await product.save();
 
       createCart.calculateGrandTotal(cart);
       await createCart.save();
@@ -117,8 +102,7 @@ module.exports.addToCart = async (req, res) => {
   }
 };
 
-//getcart
-
+//get details of cart
 module.exports.getCart = async (req, res, next) => {
   //take user from request object
   const user = req.locals;
@@ -153,72 +137,6 @@ module.exports.getCart = async (req, res, next) => {
 };
 
 // make an empty cart
-
-// module.exports.removeCart = async (req, res) => {
-//   try {
-//     const userId = req.locals._id;
-
-//     const cart = await Cart.findOne({ userId });
-
-//     //take all productId in to cart items in form of array
-
-//     const allpProductId = cart.items.map((i) => {
-//       return i.productId;
-//     });
-
-//     //take all productQuantity in to cart items in form of array
-
-//     const allpProductQuantity = cart.items.map((i) => {
-//       return i.quantity;
-//     });
-
-//     let arrayOfProducts = [];
-
-//     //loop allProductId and find Porducts and store in products and then push that products in to arrayOfProducts
-
-//     for (let i of allpProductId) {
-//       let products = await Product.findById(i);
-
-//       if (products) {
-//         arrayOfProducts.push(products);
-//       } else {
-//         return res.status(400).json({
-//           status: "fails",
-//           error: `Product with ID ${i} not found`,
-//         });
-//       }
-//     }
-
-//     //product item is remove so quantity of item is back to Products
-//     if (cart.status != "Failed") {
-//       for (let i = 0; i < arrayOfProducts.length; i++) {
-//         arrayOfProducts[i].productQuantity =
-//           arrayOfProducts[i].productQuantity + allpProductQuantity[i];
-
-//         //after update evenry products then save in to database
-//         await arrayOfProducts[i].save();
-//       }
-//     }
-
-//     //item is empty so make an emoty array with grandtotal 0.s
-//     cart.items = [];
-//     cart.grandTotal = 0;
-
-//     await cart.save();
-
-//     return res.status(200).json({
-//       status: "success",
-//       cart,
-//     });
-//   } catch (error) {
-//     console.log(error);
-//     return res.status(400).json({
-//       status: "fails",
-//       error,
-//     });
-//   }
-// };
-
 module.exports.emptyCart = async (req, res, next) => {
   try {
     const userId = req.locals._id;
@@ -308,6 +226,7 @@ module.exports.deleteItem = async (req, res, next) => {
   }
 };
 
+//complete cart drop
 module.exports.deleteCart = async (req, res, next) => {
   try {
     const cartId = req.params.cartId;

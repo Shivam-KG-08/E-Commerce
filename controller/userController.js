@@ -2,6 +2,7 @@ const User = require("../model/userModel");
 const jwt = require("jsonwebtoken");
 const CustomError = require("../utility/CustomError");
 
+// signup route
 module.exports.signup = async (req, res) => {
   try {
     const { userName, email, password, phoneNumber, role } = req.body;
@@ -22,8 +23,6 @@ module.exports.signup = async (req, res) => {
       role,
     });
 
-    console.log(user);
-
     let token = jwt.sign({ id: user._id }, process.env.SECRET_KEY);
 
     return res.status(201).json({
@@ -40,7 +39,8 @@ module.exports.signup = async (req, res) => {
   }
 };
 
-module.exports.login = async (req, res, next) => {
+// login
+module.exports.login = async (req, res) => {
   try {
     const { userName, password } = req.body;
 
@@ -91,9 +91,10 @@ module.exports.login = async (req, res, next) => {
   }
 };
 
+// get user profile details
 module.exports.getProfile = async (req, res) => {
   try {
-    const { userName, email, phoneNumber, role } = req.user;
+    const { userName, email, phoneNumber, role } = req.locals;
 
     return res.status(200).json({
       status: "success",
@@ -112,6 +113,8 @@ module.exports.getProfile = async (req, res) => {
     });
   }
 };
+
+// to check user's role is admin or user , (like protectes route if user has not permission them shown error else perform next middleware fumction)
 
 module.exports.protectedRoute = (role) => {
   return (req, res, next) => {

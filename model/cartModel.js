@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const User = require("./userModel");
+
 const CartSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -67,7 +67,6 @@ const CartSchema = new mongoose.Schema({
 //Executes before .save() or .create() before saved in to database
 CartSchema.pre("save", function (next) {
   // console.log(this);   // here this represent to the current document
-  // console.log("saved to database");
   next();
 });
 
@@ -92,7 +91,7 @@ CartSchema.methods.calculateGrandTotal = (cart) => {
   for (let i = 0; i < cart.items.length; i++) {
     total += cart.items[i].subTotal;
   }
-  return (cart.grandTotal = total);
+  return (cart.grandTotal = Number(total));
 };
 
 const Cart = mongoose.model("cart", CartSchema);

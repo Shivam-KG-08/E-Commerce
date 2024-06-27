@@ -1,13 +1,15 @@
 const Cart = require("../model/cartModel");
 const Order = require("../model/orderModel");
 const Product = require("../model/productModel");
+const CustomError = require("../utility/CustomError");
 const stripe = require("stripe")(process.env.SECRET_KEY);
 
-//process payment
-
-module.exports.checkoutPayment = async (req, res) => {
+//checkout handler (when this route hit items quantity are descrese in to inventory)
+module.exports.checkoutHandler = async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.locals._id });
+    cart.isReserved = false;
+
     let cartProduct = cart.items;
 
     if (!cart) {
@@ -20,12 +22,27 @@ module.exports.checkoutPayment = async (req, res) => {
         message: "Please add item in to cart then complete payment",
       });
     }
-
+    //item quantity descrese code
     cartProduct.map(async (i) => {
       let prd = await Product.findOne({ _id: i.productId });
       prd.productQuantity = prd.productQuantity - i.quantity;
       await prd.save();
     });
+
+    //create customer and store metadata in to customer
+    const customerOrder = await Order.findOne({ userId: req.locals._id });
+    let customerId;
+    if (customerOrder) {
+      customerId = customerOrder.customerId;
+    } else {
+      const customer = await stripe.customers.create({
+        metadata: {
+          userId: req.locals._id.toString(),
+          cartItems: JSON.stringify(cart.items),
+        },
+      });
+      customerId = customer.id;
+    }
 
     const lineItems = cartProduct.map((item) => ({
       price_data: {
@@ -38,10 +55,13 @@ module.exports.checkoutPayment = async (req, res) => {
       quantity: item.quantity,
     }));
 
+    //create checkout sessions
+
     const session = await stripe.checkout.sessions.create({
       line_items: lineItems,
       mode: "payment",
-      expires_at: Math.floor(Date.now() / 1000) + 60 * 30,
+      customer: customerId,
+      expires_at: Math.floor(Date.now() / 1000) + 60 * 30, //30 minutes
       shipping_address_collection: {
         allowed_countries: ["IN"],
       },
@@ -49,24 +69,22 @@ module.exports.checkoutPayment = async (req, res) => {
       cancel_url: `http://localhost:8080/api/v1/payment/cancel/${cart._id}`,
     });
 
-    console.log("aa");
+    // if (!cart.isReserved) {
+    //   console.log(cart.isReserved);
+    //   console.log("Enter in to expire");
     setTimeout(async () => {
-      console.log("kk");
-      if (!cart.isReserved) {
-        cart.isReserved = true;
-        console.log("back to invt");
-        cartProduct.map(async (i) => {
-          i.isReserved = true;
-          let prd = await Product.findOne({ _id: i.productId });
-          prd.productQuantity = prd.productQuantity + i.quantity;
-          await prd.save();
-        });
+      const ses = await stripe.checkout.sessions.retrieve(session.id);
+      // console.log(ses);
+      // console.log("jhghcf");
+      if (ses.status === "open") {
+        // Expire the session
+        const expiredSession = await stripe.checkout.sessions.expire(ses.id);
+        // console.log("Session expired successfully:", expiredSession);
+      } else {
+        console.log(`Cannot expire session with status: ${session.status}`);
       }
-      cart.status = "Pending";
-      cart.save();
-    }, 1800 * 1000); //30 minutes
-
-    console.log("bb");
+    }, 120 * 1000); //30 minutes
+    // }
 
     return res.status(200).json({
       status: "success",
@@ -81,59 +99,22 @@ module.exports.checkoutPayment = async (req, res) => {
   }
 };
 
+//when payment is success then stripe redirect through success_url and perform operaton
 module.exports.successPayment = async (req, res) => {
   try {
     const id = req.params.id;
 
     let cart = await Cart.findById(id);
 
-    const paymentIntent = await stripe.checkout.sessions.retrieve(
-      req.query.session_id,
-      {
-        expand: ["payment_intent.payment_method"],
-      }
-    );
-    const listItems = await stripe.checkout.sessions.listLineItems(
-      req.query.session_id
-    );
-    console.log(listItems);
-    let orderItems = listItems.data.map((i) => {
-      return {
-        itemName: i.description,
-        itemQuantity: i.quantity,
-        itemTotalPrice: i.amount_total / 100,
-      };
-    });
-
-    const order = await Order.create({
-      userId: cart.userId,
-      orderItems,
-      orderGrandTotal: cart.grandTotal,
-      orderStatus: paymentIntent.payment_intent.status,
-      userEmail: paymentIntent.customer_details.email,
-      userName: paymentIntent.customer_details.name,
-      shippingDetails: {
-        city: paymentIntent.customer_details.address.city,
-        country: paymentIntent.customer_details.address.country,
-        line1: paymentIntent.customer_details.address.line1,
-        line2: paymentIntent.customer_details.address.line2,
-        postalCode: paymentIntent.customer_details.address.postal_code,
-        state: paymentIntent.customer_details.address.state,
-      },
-    });
-
-    console.log(order);
-
-    // cart.isComplete = true;
-
     cart.items = [];
     cart.grandTotal = 0;
 
     cart.status = "Completed";
+    cart.isReserved = false;
 
     await cart.save();
 
-    res.json({
+    return res.json({
       status: "success",
       message: "Payment succesfull",
     });
@@ -145,34 +126,34 @@ module.exports.successPayment = async (req, res) => {
     });
   }
 };
+
+//when payment is failed or cancel then stripe redirect through cancel and perform operaton
 module.exports.cancelPayment = async (req, res) => {
   try {
     const id = req.params.id;
-
     let cart = await Cart.findById(id);
-
-    let cartProduct = cart.items;
 
     cart.isReserved = true;
 
+    let cartProduct = cart.items;
+
+    // cartProduct.map(async (i) => {
+    //   let prd = await Product.findOne({ _id: i.productId });
+
+    // if (i.isReserved) {
+    //   prd.productQuantity = prd.productQuantity + 0;
+    //   await prd.save();
+    // } else {
+    // prd.productQuantity = prd.productQuantity + i.quantity;
+    // await prd.save();
+    // }
+    // });
+
     cartProduct.map(async (i) => {
-      let prd = await Product.findOne({ _id: i.productId });
-      console.log(i);
-      if (i.isReserved) {
-        prd.productQuantity = prd.productQuantity + 0;
-        await prd.save();
-      } else {
-        prd.productQuantity = prd.productQuantity + i.quantity;
-        await prd.save();
-      }
+      i.isReserved = true;
     });
-    setTimeout(async () => {
-      cartProduct.map(async (i) => {
-        i.isReserved = true;
-        console.log(i);
-      });
-      await cart.save();
-    }, 5000);
+
+    await cart.save();
 
     //this code can help if any time failure happen we should identify which product is failed so change property isReserved = true
 
@@ -192,33 +173,113 @@ module.exports.cancelPayment = async (req, res) => {
 // webhook
 
 // This is your Stripe CLI webhook secret for testing your endpoint locally.
-const endpointSecret =
-  "whsec_66da8d1c29e354d5dc726ad5c5d9eb1b65a7c08f96a0b562806400727ee28b73";
+const endpointSecret = process.env.API_KEY_WEBOOK;
 
-module.exports.webHook = (request, response) => {
-  const sig = request.headers["stripe-signature"];
+module.exports.webHook = (req, res) => {
+  const sig = req.headers["stripe-signature"];
 
+  const rawBody = req.rawBody;
   let event;
 
   try {
-    event = stripe.webhooks.constructEvent(request.body, sig, endpointSecret);
-    console.log(event);
+    event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
+    // console.log("After event");
   } catch (err) {
-    response.status(400).send(`Webhook Error: ${err.message}`);
+    console.log(err);
+    res.status(400).send(`Webhook Error: ${err.message}`);
     return;
   }
 
-  // Handle the event
-  switch (event.type) {
-    case "payment_intent.succeeded":
-      const paymentIntentSucceeded = event.data.object;
-      // Then define and call a function to handle the event payment_intent.succeeded
-      break;
-    // ... handle other event types
-    default:
-      console.log(`Unhandled event type ${event.type}`);
+  let data = event.data.object;
+
+  let eventType = event.type;
+
+  const createOrder = async (customer, data) => {
+    try {
+      const Items = JSON.parse(customer.metadata.cartItems);
+
+      const products = Items.map((item) => {
+        return {
+          productId: item.productId,
+          quantity: item.quantity,
+        };
+      });
+
+      const newOrder = new Order({
+        userId: customer.metadata.userId,
+        customerId: data.customer,
+        paymentIntentId: data.payment_intent,
+        products,
+        total: data.amount_total / 100,
+        shipping: data.customer_details,
+        payment_status: data.payment_status,
+      });
+
+      const savedOrders = await newOrder.save();
+      console.log("Order : ", savedOrders);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const backToInventory = async (customer) => {
+    const cart = await Cart.findOne({ userId: customer.metadata.userId });
+    let cartProduct = cart.items;
+    console.log("Session has expired"); // if (!cart.isReserved) {
+    cart.isReserved = true;
+    cartProduct.map(async (i) => {
+      i.isReserved = true;
+      let prd = await Product.findOne({ _id: i.productId });
+      prd.productQuantity = prd.productQuantity + i.quantity;
+      await prd.save();
+    });
+    // }
+    cart.status = "Pending";
+    cart.save();
+  };
+
+  if (eventType === "checkout.session.completed") {
+    stripe.customers
+      .retrieve(data.customer)
+      .then(async (customer) => {
+        try {
+          await createOrder(customer, data);
+          console.log("ordered created successfully");
+          // return res.status(200).json({
+          //   status: "Success",
+          //   message: "Order created successfully",
+          //   data: data,
+          // });
+        } catch (error) {
+          console.log(error);
+        }
+      })
+      .catch((err) => {
+        console.log(err);
+      });
+  }
+
+  if (eventType === "checkout.session.expired") {
+    stripe.customers
+      .retrieve(data.customer)
+      .then(async (customer) => {
+        try {
+          await backToInventory(customer);
+          console.log("Backed to inventory");
+        } catch (error) {
+          console.log(error);
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
+
+  if (eventType === "charge.succeeded") {
+    console.log(data.receipt_url);
   }
 
   // Return a 200 response to acknowledge receipt of the event
-  response.send();
+
+  res.send();
 };

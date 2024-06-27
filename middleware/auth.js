@@ -2,6 +2,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../model/userModel");
 const CustomError = require("../utility/CustomError");
 
+//check token
 const auth = async (req, res, next) => {
   try {
     const token = req?.headers["authorization"]?.split(" ")[1];
@@ -20,7 +21,7 @@ const auth = async (req, res, next) => {
     }
 
     req.locals = currentUser;
-    console.log(req.locals);
+
     next();
   } catch (error) {
     console.log(error);
