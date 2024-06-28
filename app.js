@@ -5,6 +5,7 @@ const productRoute = require("./routes/productRoute");
 const userRoute = require("./routes/userRoute");
 const cartRoute = require("./routes/cartRoute");
 const paymentRoute = require("./routes/paymentRoute");
+const orderRoute = require("./routes/orderRoute");
 const databaseConnected = require("./config/db");
 
 //database connected
@@ -33,6 +34,8 @@ app.use(
 app.use("/api/v1/products", productRoute);
 app.use("/api/v1/users", userRoute);
 app.use("/api/v1/carts", cartRoute);
+
+app.use("/api/v1/orders", orderRoute);
 
 //payment routes
 app.use("/api/v1/payment", paymentRoute);

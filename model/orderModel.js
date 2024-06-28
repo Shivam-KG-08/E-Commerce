@@ -35,9 +35,11 @@ const OrderSchema = new mongoose.Schema(
     shipping: {
       type: mongoose.Schema.Types.Mixed,
     },
-    payment_status: {
+
+    status: {
       type: String,
-      required: true,
+      enum: ["Processing", "Dispatched", "Delievered"],
+      default: "Processing",
     },
   },
 
