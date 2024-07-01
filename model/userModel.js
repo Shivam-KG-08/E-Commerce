@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
+
 const UserSchema = new mongoose.Schema(
   {
     userName: {
@@ -39,6 +40,9 @@ const UserSchema = new mongoose.Schema(
       type: String,
       enum: ["user", "admin"],
       default: "user",
+    },
+    address: {
+      type: mongoose.Schema.Types.Mixed,
     },
   },
   { versionKey: false }

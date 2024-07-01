@@ -5,27 +5,25 @@ const auth = require("../middleware/auth");
 
 const router = express.Router();
 
-//free route
-router.route("/").get(productController.products);
-router.route("/:id").get(productController.getProduct);
-
-//authentication route
-router.use(auth);
-
 router
   .route("/")
+  .get(productController.products)
   .post(
+    auth,
     userController.protectedRoute("admin"),
     productController.createProduct
   );
 
 router
   .route("/:id")
+  .get(productController.getProduct)
   .patch(
+    auth,
     userController.protectedRoute("admin"),
     productController.updateProduct
   )
   .delete(
+    auth,
     userController.protectedRoute("admin"),
     productController.deleteProduct
   );

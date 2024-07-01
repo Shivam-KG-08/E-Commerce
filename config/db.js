@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-function databaseConnected() {
+function dbConnected() {
   mongoose
     .connect(process.env.MONGODB_URI)
     .then(() => {
@@ -10,4 +10,4 @@ function databaseConnected() {
     });
 }
 
-module.exports = databaseConnected;
+module.exports = dbConnected;

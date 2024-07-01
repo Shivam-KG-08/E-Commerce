@@ -111,15 +111,20 @@ module.exports.getCart = async (req, res, next) => {
     let cart = await Cart.findOne({ userId: user._id });
 
     if (!cart) {
-      return next(new CustomError("Cart not found", 404));
+      return next(
+        new CustomError(
+          "There is nothing in your cart. Let's add some items",
+          404
+        )
+      );
     }
 
     // if there is not any item in to cart then shown cart is empty
 
     if (cart.items.length == 0) {
-      return res.status(400).json({
+      return res.status(404).json({
         status: "fails",
-        message: "Your cart is empty please add item in to cart",
+        message: "There is nothing in your cart. Let's add some items",
       });
     }
 

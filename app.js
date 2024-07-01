@@ -1,15 +1,16 @@
 require("dotenv").config();
 const express = require("express");
-const app = express();
+
 const productRoute = require("./routes/productRoute");
 const userRoute = require("./routes/userRoute");
 const cartRoute = require("./routes/cartRoute");
 const paymentRoute = require("./routes/paymentRoute");
 const orderRoute = require("./routes/orderRoute");
-const databaseConnected = require("./config/db");
+const dbConnected = require("./config/db");
 
+const app = express();
 //database connected
-databaseConnected();
+dbConnected();
 
 //built-in middleware
 app.use(
@@ -21,6 +22,7 @@ app.use(
     },
   })
 );
+
 app.use(
   express.urlencoded({
     extended: true,
@@ -56,7 +58,6 @@ app.use((error, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 8000;
-
 app.listen(PORT, () => {
   console.log(`Server is running on PORT no: ${PORT}`);
 });
