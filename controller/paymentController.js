@@ -15,6 +15,11 @@ module.exports.checkoutHandler = async (req, res) => {
 
     let cartProduct = cart.items;
 
+    cartProduct.map((i) => {
+      return (i.isReserved = false);
+    });
+    await cart.save();
+
     if (!cart) {
       return next(new CustomError("Cart not found", 404));
     }
@@ -69,68 +74,6 @@ module.exports.checkoutHandler = async (req, res) => {
       console.log("New reserve cart:", reserve);
     }
 
-    // let reserveCart = await Reserve.findOne({ cartId: cart._id });
-    // console.log(reserveCart);
-    // console.log("hjhj");
-    // console.log(reserveCart);
-    // if (reserveCart) {
-    //   let removeQuantZero = reserveCart.items.filter(async (i) => {
-    //     return i.quantity !== 0;
-    //   });
-    //   console.log("ooo");
-    //   console.log(removeQuantZero);
-    //   removeQuantZero.push(
-    //     cartProduct.map(async (i) => {
-    //       return {
-    //         productId: i.productId,
-    //         quantity: i.quantity,
-    //       };
-    //     })
-    //   );
-    //   console.log("mmmm");
-    //   console.log(removeQuantZero);
-    //   await reserveCart.save();
-    // }
-
-    // // let reserveCart = await Reserve.findOne({ cartId: cart._id });
-
-    // // console.log(reserveCart);
-    // // console.log(cartProduct);
-
-    // // if (reserveCart) {
-    // //   reserveCart.items.map(async (itemReserv) => {
-    // //     let cartItem = cartProduct.find((itemcart) => {
-    // //       if (itemReserv.productId === itemcart.productId) {
-    // //         itemReserv.productId, (itemReserv.quantity = itemcart.quantity);
-    // //       } else {
-    // //         return {
-    // //           productId: itemcart.productId,
-    // //           quantity: itemcart.quantity,
-    // //         };
-    // //       }
-    // //     });
-    // //   });
-    // //   await reserveCart.save();
-    // // }
-    // else {
-    //   let reserveItems = cartProduct.map((i) => {
-    //     return {
-    //       productId: i.productId,
-    //       quantity: i.quantity,
-    //     };
-    //   });
-
-    //   console.log(reserveItems);
-
-    //   const reserve = await Reserve.create({
-    //     userId: req.locals._id,
-    //     cartId: cart._id,
-    //     items: reserveItems,
-    //     grandTotal: cart.grandTotal,
-    //   });
-
-    //   console.log(reserve);
-    // }
     //item quantity descrese code
     cartProduct.map(async (i) => {
       let prd = await Product.findOne({ _id: i.productId });
@@ -187,7 +130,7 @@ module.exports.checkoutHandler = async (req, res) => {
       } else {
         console.log(`Cannot expire session with status: ${session.status}`);
       }
-    }, 120 * 1000); //30 minutes
+    }, 300 * 1000); //30 minutes
 
     return res.status(200).json({
       status: "success",
@@ -235,32 +178,14 @@ module.exports.successPayment = async (req, res) => {
 //when payment is failed or cancel then stripe redirect through cancel and perform operaton
 module.exports.cancelPayment = async (req, res) => {
   try {
-    // const id = req.params.id;
-    // let cart = await Cart.findById(id);
+    const cart = await Cart.findById(req.params.id);
+    cart.isReserved = true;
 
-    // cart.isReserved = true;
+    cart.items.map((i) => {
+      return (i.isReserved = true);
+    });
 
-    // let cartProduct = cart.items;
-
-    // cartProduct.map(async (i) => {
-    //   let prd = await Product.findOne({ _id: i.productId });
-
-    // if (i.isReserved) {
-    //   prd.productQuantity = prd.productQuantity + 0;
-    //   await prd.save();
-    // } else {
-    // prd.productQuantity = prd.productQuantity + i.quantity;
-    // await prd.save();
-    // }
-    // });
-
-    // cartProduct.map(async (i) => {
-    //   i.isReserved = true;
-    // });
-
-    // await cart.save();
-
-    //this code can help if any time failure happen we should identify which product is failed so change property isReserved = true
+    await cart.save();
 
     const reserve = await Reserve.findOne({ cartId: req.params.id });
 
@@ -315,7 +240,6 @@ module.exports.webHook = (req, res) => {
 
   try {
     event = stripe.webhooks.constructEvent(rawBody, sig, endpointSecret);
-    // console.log("After event");
   } catch (err) {
     console.log(err);
     res.status(400).send(`Webhook Error: ${err.message}`);
@@ -356,22 +280,6 @@ module.exports.webHook = (req, res) => {
     }
   };
 
-  // const backToInventory = async (customer) => {
-  //   const cart = await Cart.findOne({ userId: customer.metadata.userId });
-  //   let cartProduct = cart.items;
-  //   console.log("Session has expired"); // if (!cart.isReserved) {
-  //   cart.isReserved = true;
-  //   cartProduct.map(async (i) => {
-  //     i.isReserved = true;
-  //     let prd = await Product.findOne({ _id: i.productId });
-  //     prd.productQuantity = prd.productQuantity + i.quantity;
-  //     await prd.save();
-  //   });
-  //   // }
-  //   cart.status = "Pending";
-  //   cart.save();
-  // };
-
   const backToInventory = async (customer) => {
     const reserve = await Reserve.findOne({ userId: customer.metadata.userId });
     console.log(reserve);
@@ -399,15 +307,16 @@ module.exports.webHook = (req, res) => {
   };
 
   const cretePayment = async (data, orderId, customer) => {
-    const paymentTime = new Date(data.created * 1000);
-    const payment_time = paymentTime.toString();
+    const payment_time = new Date(data.created * 1000);
+
+    // const payment_time = paymentTime.toString();
 
     try {
       const payment = new Payment({
         userId: customer.metadata.userId,
         orderId,
         payment_intent: data.id,
-        payment_time: payment_time,
+        payment_time,
         payment_status: data.status,
         amount: data.amount / 100,
       });

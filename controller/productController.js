@@ -3,10 +3,22 @@ const CustomError = require("../utility/CustomError");
 
 //create product (this route can perform only admin)
 module.exports.createProduct = async (req, res) => {
-  const { productName, productBrand, productPrice, productQuantity } = req.body;
+  const {
+    productName,
+    productBrand,
+    productPrice,
+    productQuantity,
+    productCategories,
+  } = req.body;
 
   try {
-    if (!productName || !productBrand || !productPrice || !productQuantity) {
+    if (
+      !productCategories ||
+      !productName ||
+      !productBrand ||
+      !productPrice ||
+      !productQuantity
+    ) {
       return res.status(400).json({
         status: "fails",
         message: "All fields are required!",
@@ -21,11 +33,13 @@ module.exports.createProduct = async (req, res) => {
       });
     }
     const products = await Product.create({
+      productCategories,
       productName,
       productBrand,
       productPrice,
       productQuantity,
     });
+    console.log(products);
 
     return res.status(201).json({
       status: "success",
@@ -43,7 +57,20 @@ module.exports.createProduct = async (req, res) => {
 //get All products
 module.exports.products = async (req, res) => {
   try {
-    const product = await Product.find({});
+    let queryStr = JSON.stringify(req.query);
+    // const lim = Number(req.query.limit) || 2;
+    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
+
+    // const productPrice = req.query.sort;
+    let product = await Product.find(JSON.parse(queryStr));
+
+    if (product.length == 0) {
+      return res.status(404).json({
+        status: "Fails",
+        message: "Not any product found",
+      });
+    }
+
     return res.status(200).json({
       status: "success",
       product,

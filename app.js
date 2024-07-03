@@ -6,6 +6,7 @@ const userRoute = require("./routes/userRoute");
 const cartRoute = require("./routes/cartRoute");
 const paymentRoute = require("./routes/paymentRoute");
 const orderRoute = require("./routes/orderRoute");
+const categoryRoute = require("./routes/categoryRoute");
 const dbConnected = require("./config/db");
 
 const app = express();
@@ -41,6 +42,9 @@ app.use("/api/v1/orders", orderRoute);
 
 //payment routes
 app.use("/api/v1/payment", paymentRoute);
+
+//category routes
+app.use("/api/v1/category", categoryRoute);
 
 //not available route
 app.all("*", (req, res, next) => {
