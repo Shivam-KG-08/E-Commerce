@@ -2,6 +2,14 @@ const mongoose = require("mongoose");
 
 const prdSchema = new mongoose.Schema(
   {
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    },
+    subCategoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subcategory",
+    },
     brandId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Brand",
@@ -33,7 +41,7 @@ const brandSchema = new mongoose.Schema(
       required: true,
     },
 
-    product: [prdSchema],
+    // product: [prdSchema],
   },
   { versionKey: false }
 );
@@ -49,7 +57,7 @@ const subCategorySchema = new mongoose.Schema(
       required: true,
     },
 
-    Brand: [brandSchema],
+    // Brand: [brandSchema],
   },
   { versionKey: false }
 );
@@ -61,7 +69,7 @@ const categorySchema = new mongoose.Schema(
       required: true,
     },
 
-    subCategory: [subCategorySchema],
+    // subCategory: [subCategorySchema],
   },
   { versionKey: false }
 );

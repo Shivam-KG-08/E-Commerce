@@ -23,16 +23,6 @@ module.exports.getCategory = async (req, res) => {
     const categoryQuery = req.query.category;
     const category = await Category.find({ title: categoryQuery });
 
-    // let in = category.subCategory
-    //   .map((i) => {
-    //     return i.Brand;
-    //   })
-    //   .map((j) => {
-    //     return j.product;
-    //   });
-    // console.log("jjj");
-    // console.log(in);
-
     return res.status(200).json({
       status: "Success",
       category,
@@ -79,14 +69,84 @@ module.exports.getBrand = async (req, res) => {
 
 module.exports.getAllPrd = async (req, res) => {
   try {
-    const category = await Prd.find({}).populate({
-      path: "brandId",
-      populate: { path: "subCategoryId", populate: { path: "categoryId" } },
-    });
+    let query = {};
+    let limitDoc = req.query.limit || 10;
+    const page = 1;
+    const offset = (page - 1) * limitDoc;
+
+    if (req.query.price) {
+      let queryStr = JSON.stringify(req.query.price);
+
+      queryStr = queryStr.replace(
+        /\b(gte|gt|lte|lt)\b/g,
+        (match) => `$${match}`
+      );
+
+      let queryObj = JSON.parse(queryStr);
+      query.price = queryObj;
+    }
+
+    if (req.query.category) {
+      let cat = await Category.findOne({ title: req.query.category });
+      if (cat) {
+        query.categoryId = cat.id;
+      } else {
+        return res.status(404).json({
+          status: "Fails",
+          message: "Category not found",
+        });
+      }
+    }
+
+    if (req.query.subCategory) {
+      let sub = await Subcategory.findOne({ title: req.query.subCategory });
+      if (sub) {
+        query.subCategoryId = sub.id;
+      } else {
+        return res.status(404).json({
+          status: "Fails",
+          message: "Subcategory not found",
+        });
+      }
+    }
+
+    if (req.query.brand) {
+      let brd = await Brand.findOne({ name: req.query.brand });
+      if (brd) {
+        query.brandId = brd.id;
+      } else {
+        return res.status(404).json({
+          status: "Fails",
+          message: "Brand not found",
+        });
+      }
+    }
+
+    let srt;
+
+    if (req.query.sort) {
+      srt = req.query.sort.split(",").join(" ");
+      console.log(srt);
+    }
+
+    // console.log(query);
+    const product = await Prd.find(query)
+      .skip(offset)
+      .limit(limitDoc)
+      .sort(srt);
+    const result = product.length;
+
+    if (product.length == 0) {
+      return res.status(404).json({
+        status: "Fails",
+        message: "Not any product found",
+      });
+    }
 
     return res.status(200).json({
-      status: "Success",
-      category,
+      status: "success",
+      result,
+      product,
     });
   } catch (error) {
     console.log(error);
@@ -140,20 +200,21 @@ module.exports.createSubcategory = async (req, res, next) => {
     if (!category) {
       return next(new CustomError("Category not found", 404));
     }
+
     const subCat = await Subcategory.create({
       categoryId: req.params.id,
       title: req.body.title,
     });
-    const sub = category.subCategory;
+    // const sub = category.subCategory;
 
-    sub.push(subCat);
+    // sub.push(subCat);
 
-    await category.save();
+    // await category.save();
 
     return res.status(201).json({
       status: "Success",
-      message: "Category created successfully",
-      category,
+      message: "Subcategory created successfully",
+      subCat,
     });
   } catch (error) {
     console.log(error);
@@ -174,21 +235,21 @@ module.exports.createBrand = async (req, res, next) => {
       subCategoryId: req.params.id,
       name: req.body.name,
     });
-    const sub = subCat.Brand;
-    sub.push(brandCat);
+    // const sub = subCat.Brand;
+    // sub.push(brandCat);
 
-    await subCat.save();
+    // await subCat.save();
 
-    const cat = await Category.findById(subCat.categoryId);
-    const subCategory = cat.subCategory.id(req.params.id);
+    // const cat = await Category.findById(subCat.categoryId);
+    // const subCategory = cat.subCategory.id(req.params.id);
     // console.log(subCategory);
-    subCategory.Brand.push(brandCat);
-    await cat.save();
+    // subCategory.Brand.push(brandCat);
+    // await cat.save();
 
     return res.status(201).json({
       status: "Success",
-      message: "Category created successfully",
-      subCat,
+      message: "Brand created successfully",
+      brandCat,
     });
   } catch (error) {
     console.log(error);
@@ -202,37 +263,40 @@ module.exports.createBrand = async (req, res, next) => {
 module.exports.createPrd = async (req, res, next) => {
   try {
     const brand = await Brand.findById(req.params.id);
-    console.log(brand);
+
+    const subCate = await Subcategory.findById(brand.subCategoryId);
 
     if (!brand) {
-      return next(new CustomError("Sub Category not found", 404));
+      return next(new CustomError("Brand not found", 404));
     }
     const prdCat = await Prd.create({
+      categoryId: subCate.categoryId,
+      subCategoryId: brand.subCategoryId,
       brandId: req.params.id,
       name: req.body.name,
       price: req.body.price,
       quantity: req.body.quantity,
     });
-    const sub = brand.product;
+    // const sub = brand.product;
 
-    sub.push(prdCat);
+    // sub.push(prdCat);
 
-    await brand.save();
+    // await brand.save();
 
-    const subCat = await Subcategory.findById(brand.subCategoryId);
-    const brd = subCat.Brand.id(req.params.id);
-    brd.product.push(prdCat);
-    await subCat.save();
+    // const subCat = await Subcategory.findById(brand.subCategoryId);
+    // const brd = subCat.Brand.id(req.params.id);
+    // brd.product.push(prdCat);
+    // await subCat.save();
 
-    const cat = await Category.findById(subCat.categoryId);
-    const subCategory = cat.subCategory.id(subCat.id);
-    const prd = subCategory.Brand.id(req.params.id);
-    prd.product.push(prdCat);
-    await cat.save();
+    // const cat = await Category.findById(subCat.categoryId);
+    // const subCategory = cat.subCategory.id(subCat.id);
+    // const prd = subCategory.Brand.id(req.params.id);
+    // prd.product.push(prdCat);
+    // await cat.save();
 
     return res.status(201).json({
       status: "Success",
-      message: "Category created successfully",
+      message: "Product created successfully",
       prdCat,
     });
   } catch (error) {

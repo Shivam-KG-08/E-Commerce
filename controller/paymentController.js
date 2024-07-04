@@ -1,7 +1,7 @@
 const Cart = require("../model/cartModel");
+const { Prd } = require("../model/categoryModel");
 const Order = require("../model/orderModel");
 const Payment = require("../model/paymentModel");
-const Product = require("../model/productModel");
 const Reserve = require("../model/reserveModel");
 const User = require("../model/userModel");
 const CustomError = require("../utility/CustomError");
@@ -76,16 +76,15 @@ module.exports.checkoutHandler = async (req, res) => {
 
     //item quantity descrese code
     cartProduct.map(async (i) => {
-      let prd = await Product.findOne({ _id: i.productId });
-      prd.productQuantity = prd.productQuantity - i.quantity;
-      await prd.save();
+      let prds = await Prd.findOne({ _id: i.productId });
+      prds.quantity = prds.quantity - i.quantity;
+      await prds.save();
     });
 
     //create customer and store metadata in to customer
     const customerOrder = await Order.findOne({ userId: req.locals._id });
     let customerId;
     if (customerOrder) {
-      console.log("dfs");
       customerId = customerOrder.customerId;
     } else {
       const customer = await stripe.customers.create({
@@ -101,9 +100,9 @@ module.exports.checkoutHandler = async (req, res) => {
       price_data: {
         currency: "INR",
         product_data: {
-          name: item.productName,
+          name: item.name,
         },
-        unit_amount: item.productPrice * 100,
+        unit_amount: item.price * 100,
       },
       quantity: item.quantity,
     }));
@@ -195,9 +194,9 @@ module.exports.cancelPayment = async (req, res) => {
 
       // Update product quantities and set reserve item quantities to zero
       for (const item of reserve.items) {
-        const product = await Product.findById(item.productId);
+        const product = await Prd.findById(item.productId);
         if (product) {
-          product.productQuantity += item.quantity;
+          product.quantity += item.quantity;
           item.quantity = 0;
           await product.save();
         }
@@ -282,7 +281,6 @@ module.exports.webHook = (req, res) => {
 
   const backToInventory = async (customer) => {
     const reserve = await Reserve.findOne({ userId: customer.metadata.userId });
-    console.log(reserve);
 
     //this endpoints hit when user does not perform checkout payment either success or failure
     if (reserve && !reserve.sessionFailed) {
@@ -291,9 +289,9 @@ module.exports.webHook = (req, res) => {
       // cart.isReserved = true;
       reserveProduct.map(async (i) => {
         // i.isReserved = true;
-        let prd = await Product.findOne({ _id: i.productId });
-        prd.productQuantity = prd.productQuantity + i.quantity;
-        await prd.save();
+        let prds = await Prd.findOne({ _id: i.productId });
+        prds.quantity = prds.quantity + i.quantity;
+        await prds.save();
         i.quantity = 0;
       });
       // }
@@ -302,7 +300,8 @@ module.exports.webHook = (req, res) => {
 
       await Reserve.findOneAndDelete({ userId: customer.metadata.userId });
     } else {
-      console.log("pppppp");
+      // console.log("pppppp");
+      return;
     }
   };
 
@@ -429,8 +428,6 @@ module.exports.webHook = (req, res) => {
             { address: data.shipping_details.address },
             { new: true }
           );
-
-          console.log(user);
         } catch (error) {
           console.log(error);
         }

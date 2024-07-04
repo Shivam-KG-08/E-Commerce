@@ -39,7 +39,7 @@ module.exports.createProduct = async (req, res) => {
       productPrice,
       productQuantity,
     });
-    console.log(products);
+    // console.log(products);
 
     return res.status(201).json({
       status: "success",

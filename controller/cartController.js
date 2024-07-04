@@ -1,5 +1,7 @@
 const Cart = require("../model/cartModel");
-const Product = require("../model/productModel");
+const { Prd } = require("../model/categoryModel");
+// const Product = require("../model/productModel");
+
 const CustomError = require("../utility/CustomError");
 
 //Add item in to cart and update item quantity in to cart (if there is not any item available then create cart and after that add in to cart)
@@ -19,13 +21,13 @@ module.exports.addToCart = async (req, res) => {
 
     const cart = await Cart.findOne({ userId: id });
 
-    const product = await Product.findById(productId);
+    const product = await Prd.findById(productId);
 
     if (!product) {
       return next(new CustomError("Product not found", 404));
     }
 
-    if (quantity > product.productQuantity) {
+    if (quantity > product.quantity) {
       return res.status(400).json({
         status: "fail",
         message: "Quantity of item is not available",
@@ -55,11 +57,10 @@ module.exports.addToCart = async (req, res) => {
       // console.log(findIndex);
       createCart.items.push({
         productId,
-        productName: product.productName,
-        productBrand: product.productBrand,
-        productPrice: product.productPrice,
+        name: product.name,
+        price: product.price,
         quantity,
-        subTotal: Number(quantity) * Number(product.productPrice),
+        subTotal: Number(quantity) * Number(product.price),
       });
 
       //update value in products and saved in to database
@@ -83,7 +84,7 @@ module.exports.addToCart = async (req, res) => {
       createCart.items[findIndex].quantity = quantity;
 
       // calculate upated quantity with subTotal
-      createCart.items[findIndex].subTotal = quantity * product.productPrice;
+      createCart.items[findIndex].subTotal = quantity * product.price;
 
       createCart.calculateGrandTotal(cart);
       await createCart.save();
@@ -152,14 +153,13 @@ module.exports.emptyCart = async (req, res, next) => {
     }
 
     cart.items.map(async (i) => {
-      let prd = await Product.findOne({ _id: i.productId });
-      console.log(i);
+      let prds = await Prd.findOne({ _id: i.productId });
       // if (i.isReserved) {
       // prd.productQuantity = prd.productQuantity + i.quantity;
       // } else {
-      prd.productQuantity = prd.productQuantity + 0;
+      prds.quantity = prds.quantity + 0;
       // }
-      prd.save();
+      prds.save();
     });
 
     cart.items = [];
@@ -199,7 +199,7 @@ module.exports.deleteItem = async (req, res, next) => {
     // if item index is anything rather then -1 means productitem is found now simply we have to delete item
 
     if (itemIndex != -1) {
-      const product = await Product.findById(productId);
+      const product = await Prd.findById(productId);
 
       const removeItem = cart.items.splice(itemIndex, 1);
 
