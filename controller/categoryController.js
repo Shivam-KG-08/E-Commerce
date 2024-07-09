@@ -67,11 +67,18 @@ module.exports.getBrand = async (req, res) => {
   }
 };
 
-module.exports.getAllPrd = async (req, res) => {
+module.exports.getAllPrd = async (req, res, next) => {
   try {
     let query = {};
-    let limitDoc = req.query.limit || 10;
-    const page = 1;
+    let limitDoc = req.query.limit;
+    if (limitDoc <= 0) {
+      return next(new CustomError("Enter valid limit", 400));
+    }
+    const page = req.query.page;
+
+    if (page <= 0) {
+      return next(new CustomError("Invalid page number", 400));
+    }
     const offset = (page - 1) * limitDoc;
 
     if (req.query.price) {
@@ -126,7 +133,6 @@ module.exports.getAllPrd = async (req, res) => {
 
     if (req.query.sort) {
       srt = req.query.sort.split(",").join(" ");
-      console.log(srt);
     }
 
     // console.log(query);
