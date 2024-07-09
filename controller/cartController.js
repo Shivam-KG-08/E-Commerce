@@ -1,82 +1,97 @@
-const Cart = require("../model/cart");
-const Product = require("../model/products");
+const Cart = require("../model/cartModel");
+const { Prd } = require("../model/categoryModel");
+// const Product = require("../model/productModel");
 
-//Add item in to cart
+const CustomError = require("../utility/CustomError");
+
+//Add item in to cart and update item quantity in to cart (if there is not any item available then create cart and after that add in to cart)
+
 module.exports.addToCart = async (req, res) => {
   try {
-    const id = req.user._id;
+    const id = req.locals._id;
     const productId = req.params.productId;
     const { quantity } = req.body;
 
+    if (quantity <= 0) {
+      return res.status(400).json({
+        status: "fails",
+        message: "Please enter valid quantity",
+      });
+    }
+
     const cart = await Cart.findOne({ userId: id });
 
-    const product = await Product.findOne({
-      _id: productId,
-    });
+    const product = await Prd.findById(productId);
 
-    if (quantity > product.productQuantity) {
+    if (!product) {
+      return next(new CustomError("Product not found", 404));
+    }
+
+    if (quantity > product.quantity) {
       return res.status(400).json({
         status: "fail",
         message: "Quantity of item is not available",
       });
     }
 
-    const itemExist = res.cart.items.find((i) => {
-      return i.productId == productId;
+    let createCart = cart;
+    if (!cart) {
+      // if there is not any cart available then create an cart then add items in to cart
+      createCart = await Cart.create({
+        userId: id,
+        items: [],
+        grandTotal: 0,
+      });
+
+      await createCart.save();
+    }
+
+    //find products in to cart if product is not found then return -1 as a index ,  and if product is found then return index of products
+
+    let findIndex = createCart.items.findIndex((i) => {
+      return i.productId.toString() === productId;
     });
 
-    // console.log(itemExist);
+    if (findIndex < 0) {
+      // if (findIndex ==  -1) {
+      // console.log(findIndex);
+      createCart.items.push({
+        productId,
+        name: product.name,
+        price: product.price,
+        quantity,
+        subTotal: Number(quantity) * Number(product.price),
+      });
 
-    if (itemExist) {
-      let previousProductQuant = product.productQuantity;
-      let previousQuant = itemExist.quantity;
-      itemExist.quantity = quantity;
-      itemExist.subTotal = quantity * itemExist.productPrice;
+      //update value in products and saved in to database
 
-      // console.log(previousProductQuant);
-      // console.log(itemExist);
-      // console.log(previousQuant);
-      // console.log(itemExist.quantity);
-      product.productQuantity =
-        previousProductQuant - (itemExist.quantity - previousQuant);
+      // product.productQuantity = product.productQuantity - quantity;
       await product.save();
 
-      let total = 0;
-      for (let i in res.cart.items) {
-        total += res.cart.items[i].subTotal;
-      }
-      res.cart.grandTotal = total;
-      await res.cart.save();
+      //calculate grandTotal value in cart
+      createCart.calculateGrandTotal(createCart);
 
-      return res.json({
+      createCart.status = "Processing";
+
+      await createCart.save();
+
+      return res.status(201).json({
         status: "success",
-        updatedCart: res.cart,
+        cart: createCart,
       });
     } else {
-      console.log("before add");
-      cart.items.push({
-        productId,
-        productName: product.productName,
-        productPrice: product.productPrice,
-        quantity,
-        subTotal: Number(quantity) * product.productPrice,
-      });
+      //assign updated quantity to the cart items
+      createCart.items[findIndex].quantity = quantity;
 
-      console.log("after add");
-      product.productQuantity = product.productQuantity - quantity;
-      await product.save();
+      // calculate upated quantity with subTotal
+      createCart.items[findIndex].subTotal = quantity * product.price;
 
-      let total = 0;
-      for (let i in cart.items) {
-        total += cart.items[i].subTotal;
-      }
+      createCart.calculateGrandTotal(cart);
+      await createCart.save();
 
-      cart.grandTotal = total;
-      await cart.save();
-      console.log("After save");
-      res.json({
+      return res.status(201).json({
         status: "success",
-        cart,
+        cart: createCart,
       });
     }
   } catch (error) {
@@ -88,50 +103,36 @@ module.exports.addToCart = async (req, res) => {
   }
 };
 
-//update quantity in to cart
-// module.exports.updateQuantity = async (req, res, next) => {
-//   try {
-//     const id = req.user._id;
-//     const productId = req.params.productId;
-//     const cart = await Cart.findOne({ userId: id });
+//get details of cart
+module.exports.getCart = async (req, res, next) => {
+  //take user from request object
+  const user = req.locals;
 
-//     let findItem = cart.items.find((i) => {
-//       return i.productId == productId;
-//     });
-
-//     findItem.quantity = Number(req.body.quantity);
-//     findItem.subTotal = findItem.productPrice * Number(req.body.quantity);
-
-//     let total = 0;
-//     for (let i in cart.items) {
-//       total += cart.items[i].subTotal;
-//     }
-//     cart.subTotal = total;
-
-//     cart.grandTotal = total;
-
-//     await cart.save();
-//     res.json({
-//       status: "success",
-//       cart,
-//     });
-//   } catch (error) {
-//     const err = new CustomError(error.message);
-//     next(err);
-//   }
-// };
-
-//getcart
-module.exports.getCart = async (req, res) => {
   try {
-    let cart = res.cart;
+    let cart = await Cart.findOne({ userId: user._id });
+
+    if (!cart) {
+      return next(
+        new CustomError(
+          "There is nothing in your cart. Let's add some items",
+          404
+        )
+      );
+    }
+
+    // if there is not any item in to cart then shown cart is empty
+
     if (cart.items.length == 0) {
-      return res.status(400).json({
+      return res.status(404).json({
         status: "fails",
-        message: "Your cart is empty please add item in to cart",
+        message: "There is nothing in your cart. Let's add some items",
       });
     }
-    return res.json(res.cart);
+
+    return res.status(200).json({
+      status: "Success",
+      cart,
+    });
   } catch (error) {
     console.log(error);
     return res.status(400).json({
@@ -141,57 +142,34 @@ module.exports.getCart = async (req, res) => {
   }
 };
 
-//remove cart
-module.exports.removeCart = async (req, res) => {
-  const allpProductId = res.cart.items.map((i) => {
-    return i.productId;
-  });
-
-  const allpProductQuantity = res.cart.items.map((i) => {
-    return i.quantity;
-  });
-
-  // let arrayOfProducts = [];
-  // for (let i = 0; i < allpProductId.length; i++) {
-  //   let products = res.cart.items[i].productId;
-  //   if (products) {
-  //     arrayOfProducts.push(products);
-  //   } else {
-  //     return res.status(400).json({
-  //       status: "fails",
-  //       error: `Product with ID ${i} not found`,
-  //     });
-  //   }
-  // }
-
-  let arrayOfProducts = [];
-  for (let i of allpProductId) {
-    let products = await Product.findOne({ _id: i });
-
-    if (products) {
-      arrayOfProducts.push(products);
-    } else {
-      return res.status(400).json({
-        status: "fails",
-        error: `Product with ID ${i} not found`,
-      });
-    }
-  }
-
-  for (let i = 0; i < arrayOfProducts.length; i++) {
-    arrayOfProducts[i].productQuantity =
-      arrayOfProducts[i].productQuantity + allpProductQuantity[i];
-    await arrayOfProducts[i].save();
-  }
-
-  res.cart.items = [];
-  res.cart.grandTotal = 0;
-
+// make an empty cart
+module.exports.emptyCart = async (req, res, next) => {
   try {
-    const updateCart = await res.cart.save();
+    const userId = req.locals._id;
+    const cart = await Cart.findOne({ userId });
+
+    if (!cart) {
+      next(new CustomError("Cart not found", 404));
+    }
+
+    cart.items.map(async (i) => {
+      let prds = await Prd.findOne({ _id: i.productId });
+      // if (i.isReserved) {
+      // prd.productQuantity = prd.productQuantity + i.quantity;
+      // } else {
+      prds.quantity = prds.quantity + 0;
+      // }
+      prds.save();
+    });
+
+    cart.items = [];
+    cart.grandTotal = 0;
+
+    await cart.save();
+
     return res.status(200).json({
       status: "success",
-      cart: updateCart,
+      cart,
     });
   } catch (error) {
     console.log(error);
@@ -202,35 +180,41 @@ module.exports.removeCart = async (req, res) => {
   }
 };
 
-//remove item from cart
-
-module.exports.deleteItem = async (req, res) => {
+//remove  particular item from cart
+module.exports.deleteItem = async (req, res, next) => {
   try {
     const productId = req.params.productId;
-    console.log(productId);
+    const userId = req.locals._id;
 
-    const itemIndex = res.cart.items.findIndex(
+    const cart = await Cart.findOne({ userId });
+
+    if (!cart) {
+      next(new CustomError("Cart not found", 404));
+    }
+
+    const itemIndex = cart.items.findIndex(
       (item) => item.productId == productId
     );
 
-    console.log(itemIndex);
+    // if item index is anything rather then -1 means productitem is found now simply we have to delete item
 
     if (itemIndex != -1) {
-      const product = await Product.findOne({ _id: productId });
-      const removeItem = res.cart.items.splice(itemIndex, 1);
+      const product = await Prd.findById(productId);
 
-      product.productQuantity =
-        product.productQuantity + removeItem[0].quantity;
+      const removeItem = cart.items.splice(itemIndex, 1);
 
+      //product quantity update
+
+      // product.productQuantity =
+      //   product.productQuantity + removeItem[0].quantity;
       await product.save();
 
-      res.cart.grandTotal = res.cart.grandTotal - removeItem[0].subTotal;
-
-      const updatedCartItem = await res.cart.save();
+      cart.grandTotal = cart.grandTotal - removeItem[0].subTotal;
+      await cart.save();
 
       return res.status(200).json({
         status: "success",
-        cart: updatedCartItem,
+        cart,
       });
     } else {
       return res.status(400).json({
@@ -238,6 +222,29 @@ module.exports.deleteItem = async (req, res) => {
         message: "There is not any item in to cart",
       });
     }
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      status: "fails",
+      error,
+    });
+  }
+};
+
+//complete cart drop
+module.exports.deleteCart = async (req, res, next) => {
+  try {
+    const cartId = req.params.cartId;
+    let cart = await Cart.findByIdAndDelete(cartId);
+
+    if (!cart) {
+      next(new CustomError("Cart not found", 404));
+    }
+
+    return res.status(200).json({
+      status: "success",
+      message: "Cart deleted successfully",
+    });
   } catch (error) {
     console.log(error);
     return res.status(400).json({

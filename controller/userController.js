@@ -1,37 +1,37 @@
-const User = require("../model/user");
+const User = require("../model/userModel");
 const jwt = require("jsonwebtoken");
 const CustomError = require("../utility/CustomError");
 
-module.exports.signUp = async (req, res, next) => {
+// signup route
+module.exports.signup = async (req, res) => {
   try {
-    const { username, email, password, phone_number, role } = req.body;
+    const { userName, email, password, phoneNumber, role } = req.body;
     const userExist = await User.findOne({ email });
-    console.log(req.body);
 
-    if (userExist != undefined) {
-      return res.status(200).json({
+    if (userExist) {
+      return res.status(400).json({
         status: "fail",
         message: "User Already Exist",
       });
     }
 
     const user = await User.create({
-      username,
+      userName,
       email,
       password,
-      phone_number,
+      phoneNumber,
       role,
     });
 
-    let token = jwt.sign({ email }, process.env.SECRET_KEY);
-    console.log(token);
+    let token = jwt.sign({ id: user._id }, process.env.SECRET_KEY);
 
-    return res.status(200).json({
+    return res.status(201).json({
       status: "success",
       user,
       token,
     });
   } catch (error) {
+    console.log(error);
     return res.status(400).json({
       status: "fail",
       error,
@@ -39,21 +39,19 @@ module.exports.signUp = async (req, res, next) => {
   }
 };
 
-module.exports.login = async (req, res, next) => {
+// login
+module.exports.login = async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { userName, password } = req.body;
 
-    if (!username || !password) {
+    if (!userName || !password) {
       return res.status(400).json({
         status: "fail",
         message: "Username or Password is required",
       });
     }
 
-    const user = await User.findOne({ username });
-    console.log(user);
-
-    let check = user.comparePassword(password, user.password);
+    const user = await User.findOne({ userName });
 
     if (!user) {
       return res.status(400).json({
@@ -61,28 +59,27 @@ module.exports.login = async (req, res, next) => {
         message: "Invalid userName and password!",
       });
     }
+    //return true if encrypt password and user.password is same
+    let check = await user.comparePassword(password, user.password);
 
-    if (user.username !== username && check) {
-      console.log(error);
-      return res.status(400).json({
-        status: "fails",
-        error,
-      });
-    } else {
-      let token = jwt.sign({ username }, process.env.SECRET_KEY);
-      console.log(token);
-      console.log("token");
+    if (user.userName == userName && check) {
+      let token = jwt.sign({ id: user._id }, process.env.SECRET_KEY);
 
       return res.status(200).json({
         status: "success",
-        message: "Successfully login",
+        message: "Login successfully",
         user: {
-          username: user.username,
+          username: user.userName,
           email: user.email,
-          phone_number: user.phone_number,
+          phoneNumber: user.phoneNumber,
           role: user.role,
         },
         token,
+      });
+    } else {
+      return res.status(400).json({
+        status: "fail",
+        message: "Invalid username or password",
       });
     }
   } catch (error) {
@@ -94,16 +91,17 @@ module.exports.login = async (req, res, next) => {
   }
 };
 
+// get user profile details
 module.exports.getProfile = async (req, res) => {
   try {
-    const { username, email, phone_number, role } = req.user;
+    const { userName, email, phoneNumber, role } = req.locals;
 
     return res.status(200).json({
       status: "success",
       user: {
-        username,
+        userName,
         email,
-        phone_number,
+        phoneNumber,
         role,
       },
     });
@@ -116,15 +114,19 @@ module.exports.getProfile = async (req, res) => {
   }
 };
 
+// to check user's role is admin or user , (like protectes route if user has not permission them shown error else perform next middleware fumction)
+
 module.exports.protectedRoute = (role) => {
   return (req, res, next) => {
-    if (req.user.role != role) {
-      const err = new CustomError(
-        "You have not an authorized person so can't access this route",
-        "400"
+    if (!role.includes(req.locals.role)) {
+      next(
+        new CustomError(
+          "You have not an authorized person so can't access this route",
+          401
+        )
       );
-      next(err);
     }
-    next();
+
+    next(); // calling next middleware
   };
 };
