@@ -1,3 +1,5 @@
+const sentMail = require("../config/mailer");
+const refundMail = require("../config/refundMail");
 const Cart = require("../model/cartModel");
 const { Prd } = require("../model/categoryModel");
 const Order = require("../model/orderModel");
@@ -90,6 +92,7 @@ module.exports.checkoutHandler = async (req, res) => {
       const customer = await stripe.customers.create({
         metadata: {
           userId: req.locals._id.toString(),
+          cartId: cart.id.toString(),
           cartItems: JSON.stringify(cart.items),
         },
       });
@@ -262,6 +265,7 @@ module.exports.webHook = (req, res) => {
 
       const newOrder = new Order({
         userId: customer.metadata.userId,
+        cartId: customer.metadata.cartId,
         customerId: data.customer,
         paymentIntentId: data.id,
         products,
@@ -354,8 +358,18 @@ module.exports.webHook = (req, res) => {
       });
   }
 
-  if (eventType === "charge.succeeded") {
-    console.log(data.receipt_url);
+  if (eventType === "charge.updated") {
+    console.log(data);
+    sentMail(data);
+    Payment.findOneAndUpdate(
+      { payment_intent: data.payment_intent },
+      { chargeId: data.id },
+      { new: true }
+    ).then((result) => {
+      console.log("poiu");
+      console.log(result);
+      console.log("lkjh");
+    });
   }
   //this event triggers when card failed meands payment failed during card issues like card_declined , incoreece_cvc , expire etc reasons
 
@@ -375,6 +389,7 @@ module.exports.webHook = (req, res) => {
 
           const newOrder = new Order({
             userId: customer.metadata.userId,
+            cartId: customer.metadata.cartId,
             customerId: data.customer,
             paymentIntentId: data.payment_intent,
             products,
@@ -449,6 +464,24 @@ module.exports.webHook = (req, res) => {
         } catch (error) {
           console.log(error);
         }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
+
+  if (eventType === "charge.refunded") {
+    console.log(data);
+    Payment.findOneAndUpdate(
+      { chargeId: data.id },
+      { payment_status: "refunded" },
+      { new: true }
+    )
+      .then((result) => {
+        console.log(result);
+        console.log("Updates status");
+
+        refundMail(data);
       })
       .catch((error) => {
         console.log(error);
