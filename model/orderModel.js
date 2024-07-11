@@ -18,6 +18,10 @@ const OrderSchema = new mongoose.Schema(
       type: String,
     },
 
+    cartId: {
+      type: String,
+    },
+
     customerId: {
       type: String,
     },
@@ -38,7 +42,7 @@ const OrderSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["Processing", "Dispatched", "Delievered", "Failed"],
+      enum: ["Processing", "Dispatched", "Delievered", "Cancelled", "Return"],
       default: "Processing",
     },
   },

@@ -14,6 +14,9 @@ const paymentSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    chargeId: {
+      type: String,
+    },
     payment_time: {
       type: Date,
     },
