@@ -6,31 +6,10 @@ const auth = require("../middleware/auth");
 
 router.use(auth);
 
-router
-  .route("/")
-  .get(categoryController.getAllCategory)
-  .post(
-    userController.protectedRoute("admin"),
-    categoryController.createCategory
-  );
-router.route("/product").get(categoryController.getAllPrd);
+router.route("/").get(categoryController.getAllCategory).post(userController.protectedRoute("admin"),categoryController.createCategory);
 
-router
-  .route("/:id")
-  .post(
-    userController.protectedRoute("admin"),
-    categoryController.createSubcategory
-  )
-  .get(categoryController.getCategory);
+router.route("/:id").get(categoryController.getCategory).post(userController.protectedRoute("admin"),categoryController.createSubcategory);
 
-router
-  .route("/brand/:id")
-  .post(userController.protectedRoute("admin"), categoryController.createBrand)
-  .get(categoryController.getBrand);
-
-router
-  .route("/product/:id")
-  .post(userController.protectedRoute("admin"), categoryController.createPrd)
-  .get(categoryController.getProducts);
+router.route("/brand/:id").get(categoryController.getBrand).post(userController.protectedRoute("admin"), categoryController.createBrand);
 
 module.exports = router;

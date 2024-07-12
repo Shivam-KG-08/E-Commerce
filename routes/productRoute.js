@@ -5,27 +5,13 @@ const auth = require("../middleware/auth");
 
 const router = express.Router();
 
-router
-  .route("/")
-  .get(productController.products)
-  .post(
-    auth,
-    userController.protectedRoute("admin"),
-    productController.createProduct
-  );
+router.route("/").get(productController.getAllProducts);
 
 router
   .route("/:id")
   .get(productController.getProduct)
-  .patch(
-    auth,
-    userController.protectedRoute("admin"),
-    productController.updateProduct
-  )
-  .delete(
-    auth,
-    userController.protectedRoute("admin"),
-    productController.deleteProduct
-  );
+  .post(auth,userController.protectedRoute("admin"), productController.createProduct)
+  .patch(auth,userController.protectedRoute("admin"),productController.updateProduct)
+  .delete(auth,userController.protectedRoute("admin"),productController.deleteProduct);
 
 module.exports = router;

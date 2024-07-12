@@ -1,11 +1,11 @@
 const sentMail = require("../config/mailer");
 const refundMail = require("../config/refundMail");
 const Cart = require("../model/cartModel");
-const { Prd } = require("../model/categoryModel");
 const Order = require("../model/orderModel");
 const Payment = require("../model/paymentModel");
 const Reserve = require("../model/reserveModel");
 const User = require("../model/userModel");
+const Product = require("../model/productModel");
 const CustomError = require("../utility/CustomError");
 const stripe = require("stripe")(process.env.SECRET_KEY);
 
@@ -58,7 +58,7 @@ module.exports.checkoutHandler = async (req, res) => {
       reserveCart.sessionFailed = false;
       // Save the updated reserve cart
       await reserveCart.save();
-      console.log("Updated reserve cart:", reserveCart);
+      // console.log("Updated reserve cart:", reserveCart);
     } else {
       // Create a new reserve cart
       const reserveItems = cartProduct.map((i) => ({
@@ -73,12 +73,12 @@ module.exports.checkoutHandler = async (req, res) => {
         grandTotal: cart.grandTotal,
       });
 
-      console.log("New reserve cart:", reserve);
+      // console.log("New reserve cart:", reserve);
     }
 
     //item quantity descrese code
     cartProduct.map(async (i) => {
-      let prds = await Prd.findOne({ _id: i.productId });
+      let prds = await Product.findOne({ _id: i.productId });
       prds.quantity = prds.quantity - i.quantity;
       await prds.save();
     });
@@ -87,7 +87,19 @@ module.exports.checkoutHandler = async (req, res) => {
     const customerOrder = await Order.findOne({ userId: req.locals._id });
     let customerId;
     if (customerOrder) {
+      
       customerId = customerOrder.customerId;
+      
+      const customer = await stripe.customers.update(
+        customerId,
+        {
+          metadata:  {
+            userId: req.locals._id.toString(),
+            cartId: cart.id.toString(),
+            cartItems: JSON.stringify(cart.items),
+          }
+        }
+      );
     } else {
       const customer = await stripe.customers.create({
         metadata: {
@@ -197,7 +209,7 @@ module.exports.cancelPayment = async (req, res) => {
 
       // Update product quantities and set reserve item quantities to zero
       for (const item of reserve.items) {
-        const product = await Prd.findById(item.productId);
+        const product = await Product.findById(item.productId);
         if (product) {
           product.quantity += item.quantity;
           item.quantity = 0;
@@ -275,7 +287,7 @@ module.exports.webHook = (req, res) => {
       });
 
       const savedOrders = await newOrder.save();
-      console.log("Order : ", savedOrders);
+      // console.log("Order : ", savedOrders);
 
       return savedOrders;
     } catch (error) {
@@ -293,7 +305,7 @@ module.exports.webHook = (req, res) => {
       // cart.isReserved = true;
       reserveProduct.map(async (i) => {
         // i.isReserved = true;
-        let prds = await Prd.findOne({ _id: i.productId });
+        let prds = await Product.findOne({ _id: i.productId });
         prds.quantity = prds.quantity + i.quantity;
         await prds.save();
         i.quantity = 0;
@@ -304,7 +316,7 @@ module.exports.webHook = (req, res) => {
 
       await Reserve.findOneAndDelete({ userId: customer.metadata.userId });
     } else {
-      // console.log("pppppp");
+      
       return;
     }
   };
@@ -325,7 +337,7 @@ module.exports.webHook = (req, res) => {
       });
 
       const savedPayment = await payment.save();
-      console.log("Payment info : ", savedPayment);
+      // console.log("Payment info : ", savedPayment);
 
       return savedPayment;
     } catch (error) {
@@ -346,8 +358,7 @@ module.exports.webHook = (req, res) => {
           const order = await createOrder(customer, data);
           console.log("ordered created successfully");
           const orderId = order.id;
-          console.log(orderId);
-
+        
           await cretePayment(data, orderId, customer);
         } catch (error) {
           console.log(error);
@@ -359,16 +370,14 @@ module.exports.webHook = (req, res) => {
   }
 
   if (eventType === "charge.updated") {
-    console.log(data);
+  
     sentMail(data);
     Payment.findOneAndUpdate(
       { payment_intent: data.payment_intent },
       { chargeId: data.id },
       { new: true }
-    ).then((result) => {
-      console.log("poiu");
-      console.log(result);
-      console.log("lkjh");
+    ).then(() => {
+      console.log("Payment status updated");
     });
   }
   //this event triggers when card failed meands payment failed during card issues like card_declined , incoreece_cvc , expire etc reasons
@@ -399,7 +408,7 @@ module.exports.webHook = (req, res) => {
           });
 
           const savedOrders = await newOrder.save();
-          console.log("Order : ", savedOrders);
+          // console.log("Order : ", savedOrders);
 
           const order = await Order.findOne({
             paymentIntentId: data.payment_intent,
@@ -421,7 +430,7 @@ module.exports.webHook = (req, res) => {
           });
 
           const savedPayment = await payment.save();
-          console.log("Payment info : ", savedPayment);
+          // console.log("Payment info : ", savedPayment);
         } catch (error) {
           console.log(error);
         }
@@ -471,15 +480,15 @@ module.exports.webHook = (req, res) => {
   }
 
   if (eventType === "charge.refunded") {
-    console.log(data);
+    
     Payment.findOneAndUpdate(
       { chargeId: data.id },
       { payment_status: "refunded" },
       { new: true }
     )
-      .then((result) => {
-        console.log(result);
-        console.log("Updates status");
+      .then(() => {
+      
+        console.log("Rrfund status updated");
 
         refundMail(data);
       })

@@ -1,6 +1,5 @@
 require("dotenv").config();
 const express = require("express");
-
 const productRoute = require("./routes/productRoute");
 const userRoute = require("./routes/userRoute");
 const cartRoute = require("./routes/cartRoute");
@@ -10,6 +9,7 @@ const categoryRoute = require("./routes/categoryRoute");
 const dbConnected = require("./config/db");
 
 const app = express();
+
 //database connected
 dbConnected();
 
@@ -34,8 +34,8 @@ app.use(
 // if we handle simple data then used extended : false
 
 //Routes
-app.use("/api/v1/products", productRoute);
 app.use("/api/v1/users", userRoute);
+app.use("/api/v1/products", productRoute);
 app.use("/api/v1/carts", cartRoute);
 
 app.use("/api/v1/orders", orderRoute);
@@ -65,3 +65,5 @@ const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
   console.log(`Server is running on PORT no: ${PORT}`);
 });
+
+

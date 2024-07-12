@@ -1,8 +1,8 @@
 const Order = require("../model/orderModel");
 const CustomError = require("../utility/CustomError");
-const { Prd } = require("../model/categoryModel");
 const sentMail = require("../config/mailer");
 const Payment = require("../model/paymentModel");
+const Product = require("../model/productModel");
 const stripe = require("stripe")(process.env.SECRET_KEY);
 
 module.exports.getOrders = async (req, res, next) => {
@@ -38,24 +38,20 @@ module.exports.upadteOrderstatus = async (req, res, next) => {
     if (order.status === "Processing") {
       if (req.body.status === "Cancelled") {
         for (let item of order.products) {
-          let prds = await Prd.findById(item.productId);
+          let prds = await Product.findById(item.productId);
           prds.quantity += item.quantity;
           await prds.save();
         }
       }
-      order.status = "Cancelled";
+      order.status = "Cancelled"; 
       await order.save();
-      //sent cancellation
-      console.log("lllllkkk");
+
+      //sent cancellation mail
       sentMail({ payment_intent: order.paymentIntentId });
 
-      setTimeout(async () => {
         const refund = await stripe.refunds.create({
           charge: payment.chargeId,
         });
-        console.log(refund);
-        console.log("before refunds");
-      }, 60 * 10000);
     }
 
     return res.status(200).json({

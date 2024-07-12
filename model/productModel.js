@@ -2,28 +2,29 @@ const mongoose = require("mongoose");
 
 const ProductSchema = new mongoose.Schema(
   {
-    productCategories: {
+    categoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
+    },
+    subCategoryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subcategory",
+    },
+    brandId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Brand",
+    },
+    name: {
       type: String,
       required: true,
     },
-    productName: {
-      type: String,
-      required: [true, "Product name is required"],
-    },
-
-    productBrand: {
-      type: String,
-      required: [true, "Product brand field is required"],
-    },
-
-    productPrice: {
+    price: {
       type: Number,
-      required: [true, "Product price is required"],
+      required: true,
     },
-
-    productQuantity: {
+    quantity: {
       type: Number,
-      required: [true, "Product quantity field is required"],
+      required: true,
     },
   },
   { versionKey: false }

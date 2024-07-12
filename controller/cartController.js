@@ -1,6 +1,5 @@
 const Cart = require("../model/cartModel");
-const { Prd } = require("../model/categoryModel");
-// const Product = require("../model/productModel");
+const Product = require("../model/productModel");
 
 const CustomError = require("../utility/CustomError");
 
@@ -21,7 +20,7 @@ module.exports.addToCart = async (req, res) => {
 
     const cart = await Cart.findOne({ userId: id });
 
-    const product = await Prd.findById(productId);
+    const product = await Product.findById(productId);
 
     if (!product) {
       return next(new CustomError("Product not found", 404));
@@ -152,16 +151,6 @@ module.exports.emptyCart = async (req, res, next) => {
       next(new CustomError("Cart not found", 404));
     }
 
-    cart.items.map(async (i) => {
-      let prds = await Prd.findOne({ _id: i.productId });
-      // if (i.isReserved) {
-      // prd.productQuantity = prd.productQuantity + i.quantity;
-      // } else {
-      prds.quantity = prds.quantity + 0;
-      // }
-      prds.save();
-    });
-
     cart.items = [];
     cart.grandTotal = 0;
 
@@ -199,14 +188,10 @@ module.exports.deleteItem = async (req, res, next) => {
     // if item index is anything rather then -1 means productitem is found now simply we have to delete item
 
     if (itemIndex != -1) {
-      const product = await Prd.findById(productId);
+      const product = await Product.findById(productId);
 
       const removeItem = cart.items.splice(itemIndex, 1);
 
-      //product quantity update
-
-      // product.productQuantity =
-      //   product.productQuantity + removeItem[0].quantity;
       await product.save();
 
       cart.grandTotal = cart.grandTotal - removeItem[0].subTotal;

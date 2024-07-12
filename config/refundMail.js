@@ -1,7 +1,8 @@
 const nodemailer = require("nodemailer");
 const Mailgen = require("mailgen");
 const User = require("../model/userModel");
-const Payment = require("../model/paymentModel");
+// const Payment = require("../model/paymentModel");
+const Order = require("../model/orderModel");
 
 const registeredMail = async (req, res) => {
   let configuratiion = {
@@ -22,14 +23,18 @@ const registeredMail = async (req, res) => {
     },
   });
 
-  const payment = await Payment.findOne({
-    payment_intent: req.payment_intent,
+  const order = await Order.findOne({
+    paymentIntentId: req.payment_intent,
   });
 
-  console.log(payment);
+  // const payment = await Payment.findOne({
+  //   payment_intent: req.payment_intent,
+  // });
+
+  // console.log(payment);
 
   const user = await User.findById(order.userId);
-
+  let refundReceipt = req.receipt_url;
   let email = {
     body: {
       name: user.userName,
@@ -43,7 +48,7 @@ const registeredMail = async (req, res) => {
         button: {
           color: "#22BC66",
           text: "View Receipt",
-          link: req.receipt_url,
+          link: refundReceipt,
         },
       },
       outro:
@@ -55,7 +60,7 @@ const registeredMail = async (req, res) => {
 
   let message = {
     from: process.env.EMAIL,
-    to: "gegaxo9741@apn7.com",
+    to: "bedogoh253@carspure.com",
     // to: user.email,
     subject: "Payment Refunded",
     html: emailBody,

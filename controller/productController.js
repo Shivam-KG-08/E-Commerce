@@ -1,68 +1,82 @@
+const { Category, Subcategory, Brand } = require("../model/categoryModel");
 const Product = require("../model/productModel");
 const CustomError = require("../utility/CustomError");
 
-//create product (this route can perform only admin)
-module.exports.createProduct = async (req, res) => {
-  const {
-    productName,
-    productBrand,
-    productPrice,
-    productQuantity,
-    productCategories,
-  } = req.body;
-
+module.exports.getAllProducts = async (req, res, next) => {
   try {
-    if (
-      !productCategories ||
-      !productName ||
-      !productBrand ||
-      !productPrice ||
-      !productQuantity
-    ) {
-      return res.status(400).json({
-        status: "fails",
-        message: "All fields are required!",
-      });
+    let query = {};
+    let limitDoc = req.query.limit;
+    if (limitDoc <= 0) {
+      return next(new CustomError("Enter valid limit", 400));
+    }
+    const page = req.query.page;
+
+    if (page <= 0) {
+      return next(new CustomError("Invalid page number", 400));
+    }
+    const offset = (page - 1) * limitDoc;
+
+    if (req.query.price) {
+      let queryStr = JSON.stringify(req.query.price);
+
+      queryStr = queryStr.replace(
+        /\b(gte|gt|lte|lt)\b/g,
+        (match) => `$${match}`
+      );
+
+      let queryObj = JSON.parse(queryStr);
+      query.price = queryObj;
     }
 
-    let product = await Product.findOne({ productName });
-    if (product) {
-      return res.status(400).json({
-        status: "fails",
-        message: "Product already exist",
-      });
+    if (req.query.category) {
+      let cat = await Category.findOne({ title: req.query.category });
+      if (cat) {
+        query.categoryId = cat.id;
+      } else {
+        return res.status(404).json({
+          status: "Fails",
+          message: "Category not found",
+        });
+      }
     }
-    const products = await Product.create({
-      productCategories,
-      productName,
-      productBrand,
-      productPrice,
-      productQuantity,
-    });
-    // console.log(products);
 
-    return res.status(201).json({
-      status: "success",
-      products,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(400).json({
-      status: "fail",
-      err: error,
-    });
-  }
-};
+    if (req.query.subCategory) {
+      let sub = await Subcategory.findOne({ title: req.query.subCategory });
+      if (sub) {
+        query.subCategoryId = sub.id;
+      } else {
+        return res.status(404).json({
+          status: "Fails",
+          message: "Subcategory not found",
+        });
+      }
+    }
 
-//get All products
-module.exports.products = async (req, res) => {
-  try {
-    let queryStr = JSON.stringify(req.query);
-    // const lim = Number(req.query.limit) || 2;
-    queryStr = queryStr.replace(/\b(gte|gt|lte|lt)\b/g, (match) => `$${match}`);
+    if (req.query.brand) {
+      let brd = await Brand.findOne({ name: req.query.brand });
+      if (brd) {
+        query.brandId = brd.id;
+      } else {
+        return res.status(404).json({
+          status: "Fails",
+          message: "Brand not found",
+        });
+      }
+    }
 
-    // const productPrice = req.query.sort;
-    let product = await Product.find(JSON.parse(queryStr));
+    let srt;
+
+    if (req.query.sort) {
+      srt = req.query.sort.split(",").join(" ");
+    }
+
+    // console.log(query);
+    const product = await Product.find(query)
+      .skip(offset)
+      .limit(limitDoc)
+      .sort(srt);
+
+    const result = product.length;
 
     if (product.length == 0) {
       return res.status(404).json({
@@ -73,13 +87,68 @@ module.exports.products = async (req, res) => {
 
     return res.status(200).json({
       status: "success",
+      result,
       product,
     });
   } catch (error) {
     console.log(error);
     return res.status(400).json({
-      status: "fail",
-      err: error,
+      status: "fails",
+      error,
+    });
+  }
+};
+
+module.exports.getProduct = async (req, res , next) => {
+  try {
+    const product = await Product.findById(req.params.id);
+
+    if(!product){
+     return next(new CustomError("Product not found" , 404));
+    }
+
+    return res.status(200).json({
+      status: "Success",
+      product,
+    });
+
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      status: "fails",
+      error,
+    });
+  }
+};
+
+module.exports.createProduct = async (req, res, next) => {
+  try {
+    const brand = await Brand.findById(req.params.id);
+
+    const subCate = await Subcategory.findById(brand.subCategoryId);
+
+    if (!brand) {
+      return next(new CustomError("Brand not found", 404));
+    }
+    const product = await Product.create({
+      categoryId: subCate.categoryId,
+      subCategoryId: brand.subCategoryId,
+      brandId: req.params.id,
+      name: req.body.name,
+      price: req.body.price,
+      quantity: req.body.quantity,
+    });
+
+    return res.status(201).json({
+      status: "Success",
+      message: "Product created successfully",
+      product,
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(400).json({
+      status: "fails",
+      error,
     });
   }
 };
@@ -108,27 +177,6 @@ module.exports.updateProduct = async (req, res, next) => {
     return res.status(200).json({
       status: "success",
       updateProduct,
-    });
-  } catch (error) {
-    return res.status(400).json({
-      status: "fail",
-      err: error,
-    });
-  }
-};
-
-//get products
-module.exports.getProduct = async (req, res, next) => {
-  try {
-    const id = req.params.id;
-
-    const product = await Product.findById({ _id: id });
-    if (!product) {
-      next(new CustomError("Product not found", 404));
-    }
-    return res.status(200).json({
-      status: "success",
-      product,
     });
   } catch (error) {
     return res.status(400).json({
