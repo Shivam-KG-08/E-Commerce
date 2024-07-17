@@ -14,7 +14,7 @@ module.exports.checkoutHandler = async (req, res) => {
   try {
     const cart = await Cart.findOne({ userId: req.locals._id });
     cart.isReserved = false;
-
+  
     let cartProduct = cart.items;
 
     cartProduct.map((i) => {
@@ -76,13 +76,20 @@ module.exports.checkoutHandler = async (req, res) => {
       // console.log("New reserve cart:", reserve);
     }
 
-    //item quantity descrese code
-    cartProduct.map(async (i) => {
-      let prds = await Product.findOne({ _id: i.productId });
-      prds.quantity = prds.quantity - i.quantity;
-      await prds.save();
-    });
+    //check if item isCheckout means item quantity is decreased , so second time check if item is alredy checkout so do not cut quantity.
 
+    if(!cart.isCheckout){
+      //item quantity descrese code
+      cartProduct.map(async (i) => {
+        let prds = await Product.findOne({ _id: i.productId });
+        prds.quantity = prds.quantity - i.quantity;
+        await prds.save();
+      });
+    }
+
+    cart.isCheckout = true;
+    cart.save();
+      
     //create customer and store metadata in to customer
     const customerOrder = await Order.findOne({ userId: req.locals._id });
     let customerId;
@@ -144,7 +151,7 @@ module.exports.checkoutHandler = async (req, res) => {
       } else {
         console.log(`Cannot expire session with status: ${session.status}`);
       }
-    }, 300 * 1000); //30 minutes
+    }, 60 * 1000); //30 minutes
 
     return res.status(200).json({
       status: "success",
@@ -171,6 +178,7 @@ module.exports.successPayment = async (req, res) => {
 
     cart.status = "Completed";
     cart.isReserved = false;
+    cart.isCheckout = false;
 
     await cart.save();
 
@@ -198,7 +206,7 @@ module.exports.cancelPayment = async (req, res) => {
     cart.items.map((i) => {
       return (i.isReserved = true);
     });
-
+    cart.isCheckout = false;
     await cart.save();
 
     const reserve = await Reserve.findOne({ cartId: req.params.id });
@@ -469,27 +477,32 @@ module.exports.webHook = (req, res) => {
         try {
           await backToInventory(customer);
           console.log("Backed to inventory");
+          Cart.findOne({userId : customer.metadata.userId}).then((cart) => {
+            cart.isCheckout = false;
+            cart.save();
+          }).catch((error) => {
+            console.log(error);
+          })
           return;
         } catch (error) {
           console.log(error);
         }
       })
       .catch((error) => {
-        console.log(error);
+        console.log0(error);
       });
+      
   }
 
   if (eventType === "charge.refunded") {
-    
+  
     Payment.findOneAndUpdate(
       { chargeId: data.id },
       { payment_status: "refunded" },
       { new: true }
     )
       .then(() => {
-      
         console.log("Rrfund status updated");
-
         refundMail(data);
       })
       .catch((error) => {

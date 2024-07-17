@@ -151,7 +151,7 @@ module.exports.createProduct = async (req, res, next) => {
       error,
     });
   }
-};
+}; 
 
 //update products (this route can perform only admin)
 module.exports.updateProduct = async (req, res, next) => {

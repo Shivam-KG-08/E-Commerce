@@ -62,6 +62,13 @@ const CartSchema = new mongoose.Schema({
     required: true,
     default: false,
   },
+
+  isCheckout : {
+    type : Boolean,
+    required : true,
+    default : false,
+  }
+  
 });
 
 //Executes before .save() or .create() before saved in to database

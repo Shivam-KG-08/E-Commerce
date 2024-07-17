@@ -1,7 +1,6 @@
 const nodemailer = require("nodemailer");
 const Mailgen = require("mailgen");
 const User = require("../model/userModel");
-// const Payment = require("../model/paymentModel");
 const Order = require("../model/orderModel");
 
 const registeredMail = async (req, res) => {
@@ -26,12 +25,6 @@ const registeredMail = async (req, res) => {
   const order = await Order.findOne({
     paymentIntentId: req.payment_intent,
   });
-
-  // const payment = await Payment.findOne({
-  //   payment_intent: req.payment_intent,
-  // });
-
-  // console.log(payment);
 
   const user = await User.findById(order.userId);
   let refundReceipt = req.receipt_url;

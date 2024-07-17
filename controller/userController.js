@@ -6,6 +6,7 @@ const CustomError = require("../utility/CustomError");
 module.exports.signup = async (req, res) => {
   try {
     const { userName, email, password, phoneNumber, role } = req.body;
+    console.log(phoneNumber)
     const userExist = await User.findOne({ email });
 
     if (userExist) {
@@ -52,6 +53,8 @@ module.exports.login = async (req, res) => {
     }
 
     const user = await User.findOne({ userName });
+
+    console.log(user);
 
     if (!user) {
       return res.status(400).json({

@@ -48,10 +48,6 @@ module.exports.upadteOrderstatus = async (req, res, next) => {
 
       //sent cancellation mail
       sentMail({ payment_intent: order.paymentIntentId });
-
-        const refund = await stripe.refunds.create({
-          charge: payment.chargeId,
-        });
     }
 
     return res.status(200).json({
@@ -66,3 +62,20 @@ module.exports.upadteOrderstatus = async (req, res, next) => {
     });
   }
 };
+
+module.exports.refund = async (req,res) => {
+  const orderId = req.params.orderId;
+  const payment = await Payment.findOne({orderId});
+  console.log(payment);
+
+  //trigger charge.refund evenet
+  const refund = await stripe.refunds.create({
+    charge: payment.chargeId,
+  });
+  
+  return res.status(200).json({
+    status : "success",
+    message : "your refund for order has been processed. The amount of your order will be credited back to your account"
+  })  
+  // console.log(refund);
+}
